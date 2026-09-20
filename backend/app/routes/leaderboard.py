@@ -1,16 +1,11 @@
 from fastapi import APIRouter, Query
 from pydantic import BaseModel
-from sqlalchemy import func, select
 
-from app.core.deps import DbSession
-from app.models.domain_enums import ScoringStatus, SubmissionStatus
-from app.models.score import Score
-from app.models.submission import Submission
-from app.models.user import User
+from app.db.crud import FirestoreCRUD
+from app.models.domain_enums import ScoringStatus
 from app.schemas.common import ApiResponse
 
 router = APIRouter(prefix="/leaderboard", tags=["leaderboard"])
-
 
 class LeaderboardEntry(BaseModel):
     rank: int
@@ -25,70 +20,43 @@ class LeaderboardEntry(BaseModel):
     details_score: float = 0   # max 4
     rounds_played: int = 1
 
-
 @router.get("", response_model=ApiResponse[list[LeaderboardEntry]])
-def get_leaderboard(
-    db: DbSession,
-    round_id: str | None = Query(default=None),
-):
-    """Retrieve leaderboard rankings based on total AI scores (/80)."""
+def get_leaderboard(round_id: str | None = Query(default=None)):
+    """Retrieve leaderboard rankings based on total AI scores (/80) from Firestore repository."""
+    scores = FirestoreCRUD.list_scores()
+    valid_scores = [sc for sc in scores if sc.get("status") == ScoringStatus.SCORED.value]
+
     if round_id:
-        stmt = (
-            select(Score, User)
-            .join(User, User.id == Score.user_id)
-            .where(
-                Score.round_id == round_id,
-                Score.status == ScoringStatus.SCORED,
-            )
-            .order_by(Score.total_score.desc(), Score.created_at.asc())
-        )
-        rows = db.execute(stmt).all()
-        entries = []
-        rank = 1
-        for score, user in rows:
-            entries.append(
-                LeaderboardEntry(
-                    rank=rank,
-                    user_id=user.id,
-                    username=user.username,
-                    full_name=user.full_name,
-                    total_score=score.total_score,
-                    semantic_score=score.semantic_score,
-                    composition_score=score.composition_score,
-                    objects_score=score.objects_score,
-                    color_score=score.color_score,
-                    details_score=score.details_score,
-                    rounds_played=1,
-                )
-            )
-            rank += 1
-        return ApiResponse(data=entries, message="OK")
+        valid_scores = [sc for sc in valid_scores if sc.get("round_id") == round_id]
 
-    # Overall leaderboard: highest single submission total_score or sum per participant
-    stmt = (
-        select(
-            User,
-            func.max(Score.total_score).label("max_score"),
-            func.count(Score.id).label("rounds_played"),
-        )
-        .join(Score, Score.user_id == User.id)
-        .where(Score.status == ScoringStatus.SCORED)
-        .group_by(User.id)
-        .order_by(func.max(Score.total_score).desc(), User.created_at.asc())
-    )
+    # Group scores by user_id and select max total_score
+    user_scores = {}
+    for sc in valid_scores:
+        uid = sc.get("user_id")
+        if not uid:
+            continue
+        if uid not in user_scores or sc.get("total_score", 0) > user_scores[uid]["total_score"]:
+            user_scores[uid] = sc
 
-    rows = db.execute(stmt).all()
+    sorted_scores = sorted(user_scores.values(), key=lambda x: x.get("total_score", 0), reverse=True)
+
     entries = []
     rank = 1
-    for user, max_score, rounds_played in rows:
+    for sc in sorted_scores:
+        u = FirestoreCRUD.get_user(sc["user_id"]) or {}
         entries.append(
             LeaderboardEntry(
                 rank=rank,
-                user_id=user.id,
-                username=user.username,
-                full_name=user.full_name,
-                total_score=float(max_score or 0.0),
-                rounds_played=int(rounds_played or 1),
+                user_id=sc["user_id"],
+                username=u.get("username", "Participant"),
+                full_name=u.get("full_name") or u.get("displayName"),
+                total_score=sc.get("total_score", 0.0),
+                semantic_score=sc.get("semantic_score", 0.0),
+                composition_score=sc.get("composition_score", 0.0),
+                objects_score=sc.get("objects_score", 0.0),
+                color_score=sc.get("color_score", 0.0),
+                details_score=sc.get("details_score", 0.0),
+                rounds_played=1,
             )
         )
         rank += 1

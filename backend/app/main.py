@@ -21,6 +21,8 @@ MEDIA_DIR = Path(settings.MEDIA_ROOT)
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     MEDIA_DIR.mkdir(parents=True, exist_ok=True)
+    from app.db.firestore import get_firestore_db
+    get_firestore_db()
     if settings.AUTO_CREATE_TABLES:
         Base.metadata.create_all(bind=engine)
     yield

@@ -198,16 +198,23 @@ export function ResultPage() {
 
                 {(res.scoring_status === 'SCORED' || res.total_score > 0) && (
                   <div className="space-y-6">
-                    {/* Total Score Badge */}
+                    {/* Total Score Badge & CLIP Similarity */}
                     <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-gradient-to-r from-brand-600 to-indigo-700 p-6 text-white shadow-md">
                       <div>
                         <span className="text-xs font-semibold uppercase tracking-wider text-white/80">
                           Automated AI Score
                         </span>
                         <h3 className="text-3xl font-black tracking-tight">AI Evaluation Complete</h3>
-                        <p className="text-xs text-white/70 mt-1">
-                          Teacher/Judge offline 20 marks added separately.
-                        </p>
+                        <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                          {res.clip_similarity !== undefined && res.clip_similarity !== null && (
+                            <span className="rounded-md bg-white/20 px-2.5 py-1 font-semibold backdrop-blur-sm">
+                              Visual Similarity: {res.clip_similarity.toFixed(1)}%
+                            </span>
+                          )}
+                          <span className="rounded-md bg-white/10 px-2.5 py-1 text-white/80">
+                            Engine: {res.evaluation_method || 'CLIP (openai/clip-vit-base-patch32) + Computer Vision'}
+                          </span>
+                        </div>
                       </div>
                       <div className="flex items-baseline gap-1 rounded-2xl bg-white/10 px-6 py-3 backdrop-blur-sm ring-1 ring-white/20">
                         <span className="text-4xl font-extrabold">{res.total_score}</span>
@@ -263,8 +270,8 @@ export function ResultPage() {
 function Header() {
   return (
     <div>
-      <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">PROMPT ENGINEERING</h1>
-      <p className="mt-1 text-slate-500">Reverse Prompt Engineering Challenge — Results</p>
+      <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">MY SUBMISSIONS & RESULTS</h1>
+      <p className="mt-1 text-slate-500">Reverse Prompt Engineering Challenge — Submission History</p>
     </div>
   );
 }

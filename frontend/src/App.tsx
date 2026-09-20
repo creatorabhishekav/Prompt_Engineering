@@ -4,8 +4,8 @@ import { Layout } from '@/components/Layout';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { LoginPage } from '@/pages/Login';
 import { RegisterPage } from '@/pages/Register';
+import { AdminLoginPage } from '@/pages/AdminLogin';
 import { InstructionsPage } from '@/pages/Instructions';
-import { PracticePage } from '@/pages/Practice';
 import { ChallengePage } from '@/pages/Challenge';
 import { ResultPage } from '@/pages/Result';
 import { LeaderboardPage } from '@/pages/Leaderboard';
@@ -20,10 +20,10 @@ export function App() {
           <Route element={<Layout />}>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
+            <Route path="/admin-login" element={<AdminLoginPage />} />
 
             <Route element={<ProtectedRoute />}>
               <Route path="/instructions" element={<InstructionsPage />} />
-              <Route path="/practice" element={<PracticePage />} />
               <Route path="/challenge" element={<ChallengePage />} />
               <Route path="/result" element={<ResultPage />} />
               <Route path="/leaderboard" element={<LeaderboardPage />} />

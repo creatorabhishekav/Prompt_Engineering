@@ -48,10 +48,16 @@ const api = axios.create({
   timeout: 30000,
 });
 
-api.interceptors.request.use((config) => {
-  const token = tokenStorage.get();
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+import { auth } from '@/lib/firebase';
+
+api.interceptors.request.use(async (config) => {
+  if (auth.currentUser) {
+    try {
+      const token = await auth.currentUser.getIdToken();
+      config.headers.Authorization = `Bearer ${token}`;
+    } catch (e) {
+      console.warn('[AXIOS INTERCEPTOR] Failed to retrieve Firebase token:', e);
+    }
   }
   return config;
 });
@@ -60,10 +66,8 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
+      console.log('[AXIOS 401 INTERCEPTOR TRIGGERED ON]', error.config?.url);
       tokenStorage.clear();
-      if (!window.location.pathname.startsWith('/login')) {
-        window.location.href = '/login';
-      }
     }
     return Promise.reject(error);
   }
@@ -168,6 +172,14 @@ export const adminApi = {
     api.get(`/admin/rounds/${roundId}/target-images`).then(unwrap<TargetImage[]>),
   submissions: (roundId: string) =>
     api.get(`/admin/rounds/${roundId}/submissions`).then(unwrap<AdminSubmission[]>),
+  archiveCompetition: (id: string) =>
+    api.post(`/admin/competitions/${id}/archive`).then(unwrap<Competition>),
+  restoreCompetition: (id: string) =>
+    api.post(`/admin/competitions/${id}/restore`).then(unwrap<Competition>),
+  archiveRound: (id: string) =>
+    api.post(`/admin/rounds/${id}/archive`).then(unwrap<Round>),
+  restoreRound: (id: string) =>
+    api.post(`/admin/rounds/${id}/restore`).then(unwrap<Round>),
 };
 
 export function getApiErrorMessage(error: unknown): string {

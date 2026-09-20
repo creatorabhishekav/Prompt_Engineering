@@ -15,7 +15,7 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # App
+    BASE_DIR: Path = BASE_DIR
     APP_NAME: str = "Match That Image API"
     APP_VERSION: str = "0.1.0"
     DEBUG: bool = True
@@ -32,6 +32,12 @@ class Settings(BaseSettings):
     # CORS
     CORS_ORIGINS: str = "http://localhost:5173,http://127.0.0.1:5173"
 
+    # Firebase
+    FIREBASE_CREDENTIALS_PATH: str = ""
+    FIREBASE_CREDENTIALS_JSON: str = ""
+    FIREBASE_PROJECT_ID: str = ""
+    USE_FIRESTORE: bool = True
+
     # Supabase (later phases)
     SUPABASE_URL: str = ""
     SUPABASE_ANON_KEY: str = ""
@@ -41,6 +47,7 @@ class Settings(BaseSettings):
     AI_PROVIDER: str = "demo"
     AI_API_KEY: str = ""
     AI_MODE: str = "demo"
+    IMAGE_EVALUATOR: str = "ml"
 
     # Target-image storage
     # "local" (default) stores uploaded images under MEDIA_ROOT and serves

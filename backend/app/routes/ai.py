@@ -20,6 +20,9 @@ class GenerateResponse(BaseModel):
 
 class AiStatusResponse(BaseModel):
     mode: str
+    model: str = "openai/clip-vit-base-patch32"
+    device: str = "cpu"
+    loaded: bool = False
     provider: str
     configured: bool
 
@@ -28,9 +31,29 @@ class AiStatusResponse(BaseModel):
 def ai_status():
     settings = get_settings()
     provider = get_ai_provider()
+    
+    ml_mode = settings.IMAGE_EVALUATOR
+    ml_model = "openai/clip-vit-base-patch32"
+    ml_device = "cpu"
+    ml_loaded = False
+
+    try:
+        from app.services.ml_image_similarity import MLImageSimilarityService
+        service = MLImageSimilarityService.get_instance()
+        status_info = service.get_status()
+        ml_mode = status_info.get("mode", ml_mode)
+        ml_model = status_info.get("model", ml_model)
+        ml_device = status_info.get("device", ml_device)
+        ml_loaded = status_info.get("loaded", False)
+    except Exception:
+        pass
+
     return ApiResponse(
         data=AiStatusResponse(
-            mode=settings.AI_MODE,
+            mode=ml_mode,
+            model=ml_model,
+            device=ml_device,
+            loaded=ml_loaded,
             provider=provider.name,
             configured=provider.is_configured(),
         ),

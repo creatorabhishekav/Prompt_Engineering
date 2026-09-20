@@ -18,11 +18,7 @@ class TargetImage(TimestampMixin, Base):
 
     round: Mapped["Round"] = relationship(back_populates="target_images")
     submissions: Mapped[list["Submission"]] = relationship(back_populates="target_image")
-    practice_sessions: Mapped[list["PracticeSession"]] = relationship(
-        back_populates="target_image"
-    )
 
 
-from app.models.practice_session import PracticeSession  # noqa: E402
 from app.models.round import Round  # noqa: E402
 from app.models.submission import Submission  # noqa: E402

@@ -38,6 +38,9 @@ export interface AiStatusResponse {
   mode: string;
   provider: string;
   configured: boolean;
+  model?: string;
+  device?: string;
+  loaded?: boolean;
 }
 
 export interface GeneratedImageResponse {
@@ -74,6 +77,8 @@ export interface Round {
   time_limit_seconds: number;
   max_submissions: number;
   status: LifecycleStatus;
+  is_archived?: boolean;
+  submission_count?: number;
   elapsed_seconds: number;
   server_elapsed_seconds: number;
   remaining_seconds: number;
@@ -91,6 +96,7 @@ export interface Competition {
   description: string | null;
   slug: string;
   status: LifecycleStatus;
+  is_archived?: boolean;
   scheduled_start: string | null;
   scheduled_end: string | null;
   started_at: string | null;
@@ -181,6 +187,8 @@ export interface AdminSubmission {
   color_score?: number | null;
   details_score?: number | null;
   total_score?: number | null;
+  clip_similarity?: number | null;
+  evaluation_method?: string | null;
 }
 
 export interface AdminUserListItem {
@@ -255,6 +263,8 @@ export interface Score {
   status: string;
   feedback: string | null;
   created_at: string;
+  clip_similarity?: number | null;
+  evaluation_method?: string | null;
 }
 
 export interface ResultItem {
@@ -275,16 +285,8 @@ export interface ResultItem {
   total_score: number;
   feedback: string | null;
   submitted_at: string | null;
-}
-
-export interface PracticeSession {
-  id: string;
-  user_id: string;
-  status: 'started' | 'completed' | 'abandoned';
-  rounds_completed: number;
-  final_score: number | null;
-  started_at: string;
-  completed_at: string | null;
+  clip_similarity?: number | null;
+  evaluation_method?: string | null;
 }
 
 export interface LeaderboardEntry {

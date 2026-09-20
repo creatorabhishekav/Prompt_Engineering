@@ -89,6 +89,8 @@ function formatSeconds(total: number): string {
   return `${m}m ${s % 60}s`;
 }
 
+type FilterTab = 'all' | 'active' | 'scheduled' | 'ended' | 'archived';
+
 export function AdminDashboardPage() {
   const [stats, setStats] = useState<OverviewStats | null>(null);
   const [competitions, setCompetitions] = useState<Competition[]>([]);
@@ -96,6 +98,7 @@ export function AdminDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const [activeTab, setActiveTab] = useState<FilterTab>('all');
   const [expanded, setExpanded] = useState<string | null>(null);
   const [busyAction, setBusyAction] = useState<string | null>(null);
 
@@ -111,6 +114,10 @@ export function AdminDashboardPage() {
   const [submissionsFor, setSubmissionsFor] = useState<Round | null>(null);
   const [submissions, setSubmissions] = useState<AdminSubmission[]>([]);
   const [submissionsLoading, setSubmissionsLoading] = useState(false);
+
+  // Confirm Archive modals
+  const [archiveCompTarget, setArchiveCompTarget] = useState<Competition | null>(null);
+  const [archiveRoundTarget, setArchiveRoundTarget] = useState<Round | null>(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -149,12 +156,70 @@ export function AdminDashboardPage() {
     }
   };
 
+  const handleArchiveCompetition = async (competition: Competition) => {
+    const key = `${competition.id}:archive`;
+    setBusyAction(key);
+    setError(null);
+    try {
+      await adminApi.archiveCompetition(competition.id);
+      setArchiveCompTarget(null);
+      await refresh();
+    } catch (e) {
+      setError(getApiErrorMessage(e));
+    } finally {
+      setBusyAction(null);
+    }
+  };
+
+  const handleRestoreCompetition = async (competition: Competition) => {
+    const key = `${competition.id}:restore`;
+    setBusyAction(key);
+    setError(null);
+    try {
+      await adminApi.restoreCompetition(competition.id);
+      await refresh();
+    } catch (e) {
+      setError(getApiErrorMessage(e));
+    } finally {
+      setBusyAction(null);
+    }
+  };
+
   const runRoundAction = async (round: Round, action: RoundActionKey) => {
     const key = `${round.id}:${action}`;
     setBusyAction(key);
     setError(null);
     try {
       await adminApi.roundAction(action, round.id);
+      await refresh();
+    } catch (e) {
+      setError(getApiErrorMessage(e));
+    } finally {
+      setBusyAction(null);
+    }
+  };
+
+  const handleArchiveRound = async (round: Round) => {
+    const key = `${round.id}:archive`;
+    setBusyAction(key);
+    setError(null);
+    try {
+      await adminApi.archiveRound(round.id);
+      setArchiveRoundTarget(null);
+      await refresh();
+    } catch (e) {
+      setError(getApiErrorMessage(e));
+    } finally {
+      setBusyAction(null);
+    }
+  };
+
+  const handleRestoreRound = async (round: Round) => {
+    const key = `${round.id}:restore`;
+    setBusyAction(key);
+    setError(null);
+    try {
+      await adminApi.restoreRound(round.id);
       await refresh();
     } catch (e) {
       setError(getApiErrorMessage(e));
@@ -174,6 +239,20 @@ export function AdminDashboardPage() {
       setSubmissionsLoading(false);
     }
   };
+
+  const filteredCompetitions = competitions.filter((comp) => {
+    if (activeTab === 'archived') {
+      return comp.is_archived === true;
+    }
+    // For non-archived tabs, hide archived competitions by default
+    if (comp.is_archived === true) return false;
+
+    if (activeTab === 'all') return true;
+    if (activeTab === 'active') return comp.status === 'active' || comp.status === 'paused';
+    if (activeTab === 'scheduled') return comp.status === 'scheduled' || comp.status === 'draft';
+    if (activeTab === 'ended') return comp.status === 'ended';
+    return true;
+  });
 
   return (
     <PageTransition>
@@ -227,8 +306,23 @@ export function AdminDashboardPage() {
           {/* Competitions */}
           <div className="lg:col-span-3">
             <Card>
-              <CardHeader className="flex items-center justify-between">
-                <CardTitle>Competitions</CardTitle>
+              <CardHeader className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <CardTitle>Competitions</CardTitle>
+                  <div className="mt-2 flex flex-wrap gap-1 rounded-lg bg-slate-100 p-1 text-xs font-medium">
+                    {(['all', 'active', 'scheduled', 'ended', 'archived'] as FilterTab[]).map((tab) => (
+                      <button
+                        key={tab}
+                        onClick={() => setActiveTab(tab)}
+                        className={`rounded-md px-2.5 py-1 capitalize transition-colors ${
+                          activeTab === tab ? 'bg-white font-bold text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        {tab}
+                      </button>
+                    ))}
+                  </div>
+                </div>
                 <Button size="sm" onClick={() => setCreateCompOpen(true)}>
                   <Plus className="h-4 w-4" />
                   New competition
@@ -236,16 +330,18 @@ export function AdminDashboardPage() {
               </CardHeader>
               <CardBody className="space-y-3">
                 {loading && <Loading label="Loading competitions..." />}
-                {!loading && competitions.length === 0 && (
+                {!loading && filteredCompetitions.length === 0 && (
                   <div className="rounded-xl border border-dashed border-slate-200 py-10 text-center text-sm text-slate-400">
-                    No competitions yet. Create your first one.
+                    {activeTab === 'archived'
+                      ? 'No archived competitions found.'
+                      : 'No competitions match the selected filter.'}
                   </div>
                 )}
                 {!loading &&
-                  competitions.map((competition) => {
+                  filteredCompetitions.map((competition) => {
                     const isOpen = expanded === competition.id;
                     return (
-                      <div key={competition.id} className="rounded-xl border border-slate-200">
+                      <div key={competition.id} className={`rounded-xl border ${competition.is_archived ? 'border-amber-200 bg-amber-50/20' : 'border-slate-200'}`}>
                         <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
                           <button
                             className="flex min-w-0 items-center gap-2 text-left"
@@ -257,7 +353,14 @@ export function AdminDashboardPage() {
                               <ChevronRight className="h-4 w-4 shrink-0 text-slate-400" />
                             )}
                             <div className="min-w-0">
-                              <p className="truncate font-medium text-slate-800">{competition.title}</p>
+                              <p className="truncate font-medium text-slate-800">
+                                {competition.title}
+                                {competition.is_archived && (
+                                  <span className="ml-2 text-xs font-semibold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">
+                                    Archived
+                                  </span>
+                                )}
+                              </p>
                               <p className="text-xs text-slate-400">
                                 {competition.rounds.length} rounds · slug: {competition.slug}
                               </p>
@@ -284,6 +387,28 @@ export function AdminDashboardPage() {
                                 </Button>
                               );
                             })}
+                            {/* Archive / Restore Button for Ended Competition */}
+                            {competition.status === 'ended' && !competition.is_archived && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="border-amber-300 text-amber-700 hover:bg-amber-50"
+                                onClick={() => setArchiveCompTarget(competition)}
+                              >
+                                Archive
+                              </Button>
+                            )}
+                            {competition.is_archived && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+                                loading={busyAction === `${competition.id}:restore`}
+                                onClick={() => void handleRestoreCompetition(competition)}
+                              >
+                                Restore
+                              </Button>
+                            )}
                           </div>
                         </div>
 
@@ -293,13 +418,21 @@ export function AdminDashboardPage() {
                               <p className="py-2 text-sm text-slate-400">No rounds yet.</p>
                             )}
                             {competition.rounds.map((round) => (
-                              <div key={round.id} className="rounded-lg bg-slate-50 px-4 py-3">
+                              <div key={round.id} className={`rounded-lg px-4 py-3 ${round.is_archived ? 'bg-amber-100/40 border border-amber-200' : 'bg-slate-50'}`}>
                                 <div className="flex flex-wrap items-center justify-between gap-3">
                                   <div className="min-w-0">
-                                    <p className="font-medium text-slate-800">
-                                      Round {round.round_number}: {round.title}
+                                    <p className="font-medium text-slate-800 flex items-center gap-2">
+                                      <span>Round {round.round_number}: {round.title}</span>
+                                      {round.is_archived && (
+                                        <span className="text-[10px] uppercase font-bold text-amber-700 bg-amber-200/80 px-1.5 py-0.5 rounded">
+                                          Archived
+                                        </span>
+                                      )}
                                     </p>
                                     <div className="mt-0.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
+                                      <span className="flex items-center gap-1 font-semibold text-slate-700">
+                                        Submissions: {round.submission_count ?? 0}
+                                      </span>
                                       <span className="flex items-center gap-1">
                                         <Clock className="h-3.5 w-3.5" />
                                         {formatSeconds(round.time_limit_seconds)} limit
@@ -307,7 +440,6 @@ export function AdminDashboardPage() {
                                       <span>
                                         {round.target_image_url ? 'Target image: yes' : 'Target image: missing'}
                                       </span>
-                                      <span>Elapsed: {formatSeconds(round.server_elapsed_seconds)}</span>
                                     </div>
                                   </div>
                                   <div className="flex items-center gap-2">
@@ -337,9 +469,31 @@ export function AdminDashboardPage() {
                                         </Button>
                                       );
                                     })}
+                                    {/* Round Archive / Restore Button */}
+                                    {round.status === 'ended' && !round.is_archived && (
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="border-amber-300 text-amber-700 hover:bg-amber-50 text-xs px-2"
+                                        onClick={() => setArchiveRoundTarget(round)}
+                                      >
+                                        Archive
+                                      </Button>
+                                    )}
+                                    {round.is_archived && (
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="border-emerald-300 text-emerald-700 hover:bg-emerald-50 text-xs px-2"
+                                        loading={busyAction === `${round.id}:restore`}
+                                        onClick={() => void handleRestoreRound(round)}
+                                      >
+                                        Restore
+                                      </Button>
+                                    )}
                                     <Button size="sm" variant="ghost" onClick={() => void openSubmissions(round)}>
                                       <Eye className="h-3.5 w-3.5" />
-                                      Submissions
+                                      Submissions ({round.submission_count ?? 0})
                                     </Button>
                                   </div>
                                 </div>
@@ -422,8 +576,7 @@ export function AdminDashboardPage() {
         <div className="flex items-start gap-3 rounded-xl border border-brand-100 bg-brand-50/60 px-4 py-3 text-sm text-brand-800">
           <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />
           <p>
-            Only <strong>ADMIN</strong> users can reach these endpoints. Automated scoring and
-            result publication arrive in a later phase.
+            Admin-only controls are protected. Participant submissions are automatically evaluated and published with an AI score out of 80.
           </p>
         </div>
       </div>
@@ -528,18 +681,91 @@ export function AdminDashboardPage() {
                 </div>
 
                 {sub.total_score !== undefined && sub.total_score !== null && (
-                  <div className="rounded-lg bg-slate-50 p-3 text-xs flex flex-wrap justify-between gap-2 font-medium text-slate-600">
-                    <span>Semantic: <strong>{sub.semantic_score}/32</strong></span>
-                    <span>Composition: <strong>{sub.composition_score}/20</strong></span>
-                    <span>Objects: <strong>{sub.objects_score}/16</strong></span>
-                    <span>Color: <strong>{sub.color_score}/8</strong></span>
-                    <span>Details: <strong>{sub.details_score}/4</strong></span>
+                  <div className="space-y-2">
+                    <div className="rounded-lg bg-slate-50 p-3 text-xs flex flex-wrap justify-between gap-2 font-medium text-slate-600">
+                      <span>Semantic: <strong>{sub.semantic_score}/32</strong></span>
+                      <span>Composition: <strong>{sub.composition_score}/20</strong></span>
+                      <span>Objects: <strong>{sub.objects_score}/16</strong></span>
+                      <span>Color: <strong>{sub.color_score}/8</strong></span>
+                      <span>Details: <strong>{sub.details_score}/4</strong></span>
+                    </div>
+                    {(sub.clip_similarity !== undefined && sub.clip_similarity !== null || sub.evaluation_method) && (
+                      <div className="flex flex-wrap items-center justify-between text-xs text-slate-500 px-1">
+                        {sub.clip_similarity !== undefined && sub.clip_similarity !== null && (
+                          <span>CLIP Visual Similarity: <strong className="text-brand-700">{sub.clip_similarity.toFixed(1)}%</strong></span>
+                        )}
+                        {sub.evaluation_method && (
+                          <span>Engine: <span className="font-medium text-slate-700">{sub.evaluation_method}</span></span>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
             ))}
           </div>
         )}
+      </Modal>
+
+      {/* Archive Competition Modal */}
+      <Modal
+        open={archiveCompTarget !== null}
+        onClose={() => setArchiveCompTarget(null)}
+        title="Archive Competition?"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setArchiveCompTarget(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              className="bg-amber-600 hover:bg-amber-700 text-white border-none"
+              loading={busyAction === `${archiveCompTarget?.id}:archive`}
+              onClick={() => archiveCompTarget && void handleArchiveCompetition(archiveCompTarget)}
+            >
+              Archive
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-slate-600">
+          This competition has ended.
+        </p>
+        <p className="mt-2 text-sm text-slate-600">
+          Archiving will remove it from the normal Admin Dashboard list, but all participant submissions, results, scores, uploaded images and Gemini chat evidence will be preserved.
+        </p>
+        <p className="mt-2 text-sm font-semibold text-slate-700">
+          You can keep the historical data for review.
+        </p>
+      </Modal>
+
+      {/* Archive Round Modal */}
+      <Modal
+        open={archiveRoundTarget !== null}
+        onClose={() => setArchiveRoundTarget(null)}
+        title="Archive Round?"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setArchiveRoundTarget(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              className="bg-amber-600 hover:bg-amber-700 text-white border-none"
+              loading={busyAction === `${archiveRoundTarget?.id}:archive`}
+              onClick={() => archiveRoundTarget && void handleArchiveRound(archiveRoundTarget)}
+            >
+              Archive
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-slate-600">
+          This round has ended.
+        </p>
+        <p className="mt-2 text-sm text-slate-600">
+          The round will be removed from the normal management view, but participant submissions and results will be preserved.
+        </p>
       </Modal>
     </PageTransition>
   );

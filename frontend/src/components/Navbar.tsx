@@ -2,13 +2,13 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
+  BarChart3,
   Image as ImageIcon,
   LayoutDashboard,
   LogIn,
   LogOut,
   Menu,
   Medal,
-  Play,
   ShieldCheck,
   Target,
   Trophy,
@@ -27,8 +27,8 @@ interface NavLink {
 
 const navLinks: NavLink[] = [
   { to: '/instructions', label: 'Instructions', icon: <Target className="h-4 w-4" /> },
-  { to: '/practice', label: 'Practice', icon: <Play className="h-4 w-4" /> },
   { to: '/challenge', label: 'Challenge', icon: <Trophy className="h-4 w-4" /> },
+  { to: '/result', label: 'My Submissions', icon: <BarChart3 className="h-4 w-4" /> },
   { to: '/leaderboard', label: 'Leaderboard', icon: <Medal className="h-4 w-4" /> },
   {
     to: '/admin',

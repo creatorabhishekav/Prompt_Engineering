@@ -2,7 +2,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.schemas.domain_enums import PracticeStatus, SubmissionStatus
+from app.schemas.domain_enums import SubmissionStatus
 
 
 class SubmissionRead(BaseModel):
@@ -69,15 +69,3 @@ class ScoreRead(BaseModel):
     feedback: str | None = None
     created_at: datetime
 
-
-class PracticeSessionRead(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: str
-    user_id: str
-    target_image_id: str | None = None
-    status: PracticeStatus
-    rounds_completed: int
-    final_score: float | None = None
-    started_at: datetime
-    completed_at: datetime | None = None

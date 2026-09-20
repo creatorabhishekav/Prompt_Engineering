@@ -30,9 +30,6 @@ class User(TimestampMixin, Base):
     scores: Mapped[list["Score"]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
-    practice_sessions: Mapped[list["PracticeSession"]] = relationship(
-        back_populates="user", cascade="all, delete-orphan"
-    )
 
     @property
     def is_admin(self) -> bool:
@@ -40,6 +37,5 @@ class User(TimestampMixin, Base):
 
 
 from app.models.competition import Competition  # noqa: E402
-from app.models.practice_session import PracticeSession  # noqa: E402
 from app.models.score import Score  # noqa: E402
 from app.models.submission import Submission  # noqa: E402

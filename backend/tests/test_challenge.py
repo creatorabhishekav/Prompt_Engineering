@@ -4,11 +4,12 @@ import io
 def test_challenge_full_flow_and_locking(
     client, participant_headers, active_round_with_target
 ):
+    flow_headers = {"Authorization": "Bearer participant-token-flow"}
     rnd = active_round_with_target
 
     # 1. Start challenge
     start_res = client.post(
-        f"/api/rounds/{rnd.id}/start", headers=participant_headers
+        f"/api/rounds/{rnd['id']}/start", headers=flow_headers
     )
     assert start_res.status_code == 200
     sub_data = start_res.json()["data"]
@@ -19,14 +20,14 @@ def test_challenge_full_flow_and_locking(
     save_res = client.put(
         f"/api/submissions/{sub_id}/prompt",
         json={"prompt": "cyberpunk neon city in the rain"},
-        headers=participant_headers,
+        headers=flow_headers,
     )
     assert save_res.status_code == 200
     assert save_res.json()["data"]["prompt"] == "cyberpunk neon city in the rain"
 
     # 3. Submit without image should fail
     fail_submit = client.post(
-        f"/api/submissions/{sub_id}/submit", headers=participant_headers
+        f"/api/submissions/{sub_id}/submit", headers=flow_headers
     )
     assert fail_submit.status_code == 400 or fail_submit.status_code == 409
 
@@ -36,14 +37,14 @@ def test_challenge_full_flow_and_locking(
     upload_res = client.post(
         f"/api/submissions/{sub_id}/upload-image",
         files=file_payload,
-        headers=participant_headers,
+        headers=flow_headers,
     )
     assert upload_res.status_code == 200
     assert upload_res.json()["data"]["uploaded_image_url"] is not None
 
     # 5. Final Submit
     submit_res = client.post(
-        f"/api/submissions/{sub_id}/submit", headers=participant_headers
+        f"/api/submissions/{sub_id}/submit", headers=flow_headers
     )
     assert submit_res.status_code == 200
     final_data = submit_res.json()["data"]
@@ -53,7 +54,7 @@ def test_challenge_full_flow_and_locking(
 
     # 6. Double submit should be rejected
     double_res = client.post(
-        f"/api/submissions/{sub_id}/submit", headers=participant_headers
+        f"/api/submissions/{sub_id}/submit", headers=flow_headers
     )
     assert double_res.status_code == 409
 
@@ -61,9 +62,10 @@ def test_challenge_full_flow_and_locking(
 def test_invalid_file_upload_rejected(
     client, participant_headers, active_round_with_target
 ):
+    upload_headers = {"Authorization": "Bearer participant-token-upload-test"}
     rnd = active_round_with_target
     start_res = client.post(
-        f"/api/rounds/{rnd.id}/start", headers=participant_headers
+        f"/api/rounds/{rnd['id']}/start", headers=upload_headers
     )
     sub_id = start_res.json()["data"]["id"]
 
@@ -74,6 +76,6 @@ def test_invalid_file_upload_rejected(
     res = client.post(
         f"/api/submissions/{sub_id}/upload-image",
         files=file_payload,
-        headers=participant_headers,
+        headers=upload_headers,
     )
     assert res.status_code == 400

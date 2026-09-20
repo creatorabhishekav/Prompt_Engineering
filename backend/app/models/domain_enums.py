@@ -30,12 +30,6 @@ class SubmissionStatus(str, Enum):
     REJECTED = "rejected"
 
 
-class PracticeStatus(str, Enum):
-    STARTED = "started"
-    COMPLETED = "completed"
-    ABANDONED = "abandoned"
-
-
 class ScoringStatus(str, Enum):
     PENDING = "PENDING"
     PROCESSING = "PROCESSING"

@@ -3,6 +3,7 @@ node_modules/
 
 # Build output
 frontend/dist/
+dist/
 
 # Python
 __pycache__/
@@ -13,11 +14,28 @@ venv/
 
 # Environment & secrets
 .env
-.env.local
+.env.*
+!.env.example
 
-# Databases & logs
+# Firebase / service account secrets
+*-service-account*.json
+service-account*.json
+firebase-credentials*.json
+firebase-service-account.json
+**/firebase-service-account.json
+secret/
+
+# Databases
 *.db
+*.sqlite
 *.sqlite3
+
+# Local media / uploads
+media/
+backend/media/
+backend/temp_test_images/
+
+# Logs
 *.log
 *.pid
 

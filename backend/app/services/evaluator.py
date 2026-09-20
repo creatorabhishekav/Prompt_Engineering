@@ -1,13 +1,12 @@
-"""DEMO/LOCAL Evaluator Module for Reverse Prompt Engineering.
+"""Evaluator Module for Reverse Prompt Engineering with ML CLIP Integration."""
 
-Computes automated AI similarity scores out of 80 based on multiple visual
-and textual comparison signals without external paid AI APIs.
-"""
-
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 import re
-from typing import Optional
+import logging
+from typing import Optional, Dict, Any
+
+from app.core.config import get_settings
 
 try:
     from PIL import Image, ImageStat
@@ -15,15 +14,32 @@ try:
 except ImportError:
     HAS_PIL = False
 
+logger = logging.getLogger("app.services.evaluator")
+settings = get_settings()
+
 
 @dataclass
 class EvaluationResult:
-    semantic_score: float     # max 32
-    composition_score: float  # max 20
-    objects_score: float      # max 16
-    color_score: float        # max 8
-    details_score: float      # max 4
-    total_score: float        # max 80
+    semantic_score: float      # max 32
+    composition_score: float   # max 20
+    objects_score: float       # max 16
+    color_score: float         # max 8
+    details_score: float       # max 4
+    total_score: float         # max 80
+    clip_similarity: Optional[float] = None
+    evaluation_method: str = "CLIP + computer vision"
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "semantic_score": self.semantic_score,
+            "composition_score": self.composition_score,
+            "objects_score": self.objects_score,
+            "color_score": self.color_score,
+            "details_score": self.details_score,
+            "total_score": self.total_score,
+            "clip_similarity": self.clip_similarity,
+            "evaluation_method": self.evaluation_method,
+        }
 
 
 def _tokenize(text: str) -> set[str]:
@@ -48,14 +64,21 @@ def _load_image(file_path: Optional[str]):
     """Safely load an image using PIL if available and file exists."""
     if not HAS_PIL or not file_path:
         return None
+    
     path = Path(file_path)
+    # Check absolute or relative to project root
     if not path.exists():
-        return None
+        rel_path = settings.BASE_DIR / file_path.lstrip("/\\")
+        if rel_path.exists():
+            path = rel_path
+        else:
+            return None
     try:
         img = Image.open(path)
         img.load()
         return img
-    except Exception:
+    except Exception as e:
+        logger.warning(f"Could not load image at path {file_path}: {e}")
         return None
 
 
@@ -110,9 +133,10 @@ def evaluate_submission(
     uploaded_image_path: Optional[str],
     participant_prompt: str,
     reference_prompt: Optional[str] = None,
+    mode_override: Optional[str] = None,
 ) -> EvaluationResult:
     """Evaluate a submission deterministically against a target image and reference prompt.
-
+    
     Category Max Scores:
     - Semantic / Overall Similarity: 32
     - Composition / Layout: 20
@@ -121,18 +145,41 @@ def evaluate_submission(
     - Fine Details: 4
     - Total Max: 80
     """
-    # 1. Textual signal
-    text_sim = _text_jaccard_similarity(participant_prompt, reference_prompt or "")
+    eval_mode = (mode_override or getattr(settings, "IMAGE_EVALUATOR", "ml")).lower()
 
-    # 2. Image loading
+    # Load images
     target_img = _load_image(target_image_path)
     uploaded_img = _load_image(uploaded_image_path)
 
+    text_sim = _text_jaccard_similarity(participant_prompt, reference_prompt or "")
+
+    clip_sim_pct: Optional[float] = None
+    clip_sim_ratio: Optional[float] = None
+    evaluation_method = "Lightweight Computer Vision"
+
+    # Attempt ML CLIP similarity if requested and images exist
+    if eval_mode == "ml" and target_img and uploaded_img:
+        try:
+            from app.services.ml_image_similarity import MLImageSimilarityService
+            ml_service = MLImageSimilarityService.get_instance()
+            raw_cosine, calibrated_pct = ml_service.compare_images(target_img, uploaded_img)
+            clip_sim_pct = round(calibrated_pct, 1)
+            clip_sim_ratio = calibrated_pct / 100.0
+            evaluation_method = "CLIP + computer vision"
+        except Exception as e:
+            logger.error(f"ML evaluation failed, falling back to lightweight: {e}")
+            evaluation_method = "Lightweight Computer Vision (ML Error)"
+            clip_sim_ratio = None
+            clip_sim_pct = None
+
     if target_img and uploaded_img:
-        # Perceptual hash similarity
+        # Perceptual hash similarity (dhash)
         hash1 = _get_dhash(target_img)
         hash2 = _get_dhash(uploaded_img)
-        visual_sim = _dhash_similarity(hash1, hash2)
+        dhash_sim = _dhash_similarity(hash1, hash2)
+
+        # Main visual similarity ratio (prioritize CLIP if available)
+        visual_sim_ratio = clip_sim_ratio if clip_sim_ratio is not None else dhash_sim
 
         # Aspect ratio ratio
         ar1 = _aspect_ratio(target_img)
@@ -151,36 +198,33 @@ def evaluate_submission(
         detail_sim = min(res1, res2) / max(res1, res2, 1)
     else:
         # Fallback heuristic if images cannot be loaded
-        visual_sim = 0.65
+        visual_sim_ratio = 0.65
         aspect_sim = 0.85
         color_sim = 0.75
         detail_sim = 0.70
 
     # Calculate sub-scores
-    # Semantic: blend text & visual (max 32)
-    semantic_raw = (0.55 * visual_sim + 0.45 * text_sim) * 32.0
-    # Add small length incentive if prompt is detailed (>30 words)
-    words_count = len(participant_prompt.split())
-    prompt_bonus = min(2.0, words_count * 0.05) if words_count > 5 else 0.0
-    semantic_score = round(max(0.0, min(32.0, semantic_raw + prompt_bonus)), 2)
+    # 1. Semantic / Overall (max 32): CLIP visual similarity primary signal
+    semantic_raw = visual_sim_ratio * 32.0
+    semantic_score = round(max(0.0, min(32.0, semantic_raw)), 2)
 
-    # Composition: aspect ratio + spatial hash (max 20)
-    composition_raw = (0.6 * aspect_sim + 0.4 * visual_sim) * 20.0
+    # 2. Composition / Layout (max 20): combine CLIP visual similarity + aspect ratio
+    composition_raw = (0.5 * aspect_sim + 0.5 * visual_sim_ratio) * 20.0
     composition_score = round(max(0.0, min(20.0, composition_raw)), 2)
 
-    # Objects / Attributes: text similarity + visual hash (max 16)
-    objects_raw = (0.5 * text_sim + 0.5 * visual_sim) * 16.0
+    # 3. Objects / Attributes (max 16): CLIP visual similarity + text prompt keyword match
+    objects_raw = (0.6 * visual_sim_ratio + 0.4 * text_sim) * 16.0
     objects_score = round(max(0.0, min(16.0, objects_raw)), 2)
 
-    # Color / Lighting: color histogram/average similarity (max 8)
+    # 4. Color / Lighting (max 8): Pillow color analysis
     color_raw = color_sim * 8.0
     color_score = round(max(0.0, min(8.0, color_raw)), 2)
 
-    # Fine Details: perceptual resolution & sharpness similarity (max 4)
+    # 5. Fine Details (max 4): image resolution & sharpness ratio
     details_raw = detail_sim * 4.0
     details_score = round(max(0.0, min(4.0, details_raw)), 2)
 
-    # Calculate total score strictly as sum of components, capped at 80
+    # Calculate total score as strict sum of sub-scores, rounded to 2 decimals
     total_score = round(
         semantic_score + composition_score + objects_score + color_score + details_score,
         2,
@@ -194,4 +238,6 @@ def evaluate_submission(
         color_score=color_score,
         details_score=details_score,
         total_score=total_score,
+        clip_similarity=clip_sim_pct,
+        evaluation_method=evaluation_method,
     )
