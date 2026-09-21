@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Image as ImageIcon, Shield } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { getApiErrorMessage } from '@/lib/api';
 import { PageTransition } from '@/components/PageTransition';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -35,7 +36,7 @@ export function RegisterPage() {
       } else if (err.code === 'auth/cancelled-popup-request') {
         setError('Multiple login popup requests were triggered. Please try again.');
       } else {
-        setError(err.message || 'Failed to sign in with Google.');
+        setError(getApiErrorMessage(err));
       }
     } finally {
       setSubmitting(false);
