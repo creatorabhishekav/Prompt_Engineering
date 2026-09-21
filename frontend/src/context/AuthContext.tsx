@@ -53,7 +53,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         tokenStorage.set(idToken);
         setToken(idToken);
         const me = await authApi.me();
-        setUser(me);
+        if (me && typeof me === 'object' && me.role) {
+          setUser(me);
+        } else {
+          console.warn('[AUTH CONTEXT] Invalid user object returned on auth state change:', me);
+          tokenStorage.clear();
+          setToken(null);
+          setUser(null);
+        }
       } catch (err) {
         console.error('[AUTH CONTEXT] Failed to sync Firebase user with backend:', err);
         tokenStorage.clear();
@@ -83,8 +90,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.log('[AUTH DIAGNOSTICS] Token acquired successfully:', Boolean(idToken));
       tokenStorage.set(idToken);
       setToken(idToken);
-      console.log('[AUTH DIAGNOSTICS] Calling /api/auth/me...');
       const me = await authApi.me();
+      if (!me || typeof me !== 'object' || !me.role) {
+        console.error('[AUTH DIAGNOSTICS] Invalid user object returned from /api/auth/me:', me);
+        throw new Error('Unable to complete login due to invalid user profile response.');
+      }
       console.log('[AUTH DIAGNOSTICS] /api/auth/me succeeded for role:', me.role);
       setUser(me);
       return me;
@@ -107,6 +117,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       tokenStorage.set(idToken);
       setToken(idToken);
       const me = await authApi.me();
+      if (!me || typeof me !== 'object' || !me.role) {
+        throw new Error('Unable to complete login due to invalid user profile response.');
+      }
       if (me.role !== 'ADMIN') {
         await firebaseSignOut(auth);
         tokenStorage.clear();
