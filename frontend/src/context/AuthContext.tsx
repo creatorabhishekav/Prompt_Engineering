@@ -69,14 +69,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loginWithGoogle = useCallback(async (): Promise<User> => {
     setIsLoading(true);
+    console.log('[AUTH DIAGNOSTICS] Starting Google popup login...', {
+      authInitialized: Boolean(auth),
+      currentUserUid: auth.currentUser?.uid || null,
+    });
     try {
       const cred = await signInWithPopup(auth, googleProvider);
+      console.log('[AUTH DIAGNOSTICS] signInWithPopup succeeded', {
+        userExists: Boolean(cred?.user),
+        uid: cred?.user?.uid || null,
+      });
       const idToken = await cred.user.getIdToken();
+      console.log('[AUTH DIAGNOSTICS] Token acquired successfully:', Boolean(idToken));
       tokenStorage.set(idToken);
       setToken(idToken);
+      console.log('[AUTH DIAGNOSTICS] Calling /api/auth/me...');
       const me = await authApi.me();
+      console.log('[AUTH DIAGNOSTICS] /api/auth/me succeeded for role:', me.role);
       setUser(me);
       return me;
+    } catch (err: any) {
+      console.error('[AUTH DIAGNOSTICS] Google login failed:', {
+        code: err?.code || 'UNKNOWN',
+        message: err?.message || String(err),
+      });
+      throw err;
     } finally {
       setIsLoading(false);
     }
