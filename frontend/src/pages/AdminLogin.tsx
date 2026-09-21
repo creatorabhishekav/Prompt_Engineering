@@ -25,7 +25,11 @@ export function AdminLoginPage() {
       navigate('/admin', { replace: true });
     } catch (err: any) {
       console.error('Admin login error:', err);
-      setError(err.message || 'Access denied. This account does not have administrator privileges.');
+      if (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
+        setError('Invalid admin credentials. Please check your email and password, or verify that Email/Password sign-in is enabled in Firebase Console.');
+      } else {
+        setError(err.message || 'Access denied. This account does not have administrator privileges.');
+      }
     } finally {
       setSubmitting(false);
     }
