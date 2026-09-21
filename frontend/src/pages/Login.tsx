@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Image as ImageIcon, Shield } from 'lucide-react';
@@ -8,8 +8,14 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 
 export function LoginPage() {
-  const { loginWithGoogle } = useAuth();
+  const { loginWithGoogle, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/instructions', { replace: true });
+    }
+  }, [isAuthenticated, navigate]);
 
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
