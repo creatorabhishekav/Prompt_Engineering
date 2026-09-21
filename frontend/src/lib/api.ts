@@ -51,13 +51,16 @@ const api = axios.create({
 import { auth } from '@/lib/firebase';
 
 api.interceptors.request.use(async (config) => {
+  let token = tokenStorage.get();
   if (auth.currentUser) {
     try {
-      const token = await auth.currentUser.getIdToken();
-      config.headers.Authorization = `Bearer ${token}`;
+      token = await auth.currentUser.getIdToken();
     } catch (e) {
       console.warn('[AXIOS INTERCEPTOR] Failed to retrieve Firebase token:', e);
     }
+  }
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
 });
