@@ -30,6 +30,10 @@ export function LoginPage() {
       console.error('Google login failed:', err);
       if (err.code === 'auth/popup-closed-by-user') {
         setError('Login popup was closed before completing authentication.');
+      } else if (err.code === 'auth/popup-blocked') {
+        setError('Login popup was blocked by your browser. Please allow popups for this site.');
+      } else if (err.code === 'auth/cancelled-popup-request') {
+        setError('Multiple login popup requests were triggered. Please try again.');
       } else {
         setError(err.message || 'Failed to sign in with Google.');
       }
