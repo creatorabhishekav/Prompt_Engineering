@@ -40,8 +40,19 @@ interface Envelope<T> {
 
 const unwrap = <T>(response: { data: Envelope<T> }): T => response.data.data;
 
+const rawBaseUrl =
+  import.meta.env.VITE_API_BASE_URL ||
+  import.meta.env.VITE_API_URL ||
+  '/api';
+
+const resolvedBaseUrl = rawBaseUrl.endsWith('/api')
+  ? rawBaseUrl
+  : `${rawBaseUrl.replace(/\/+$/, '')}/api`;
+
+console.log('[API CONFIG] baseURL =', resolvedBaseUrl);
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || '/api',
+  baseURL: resolvedBaseUrl,
   headers: {
     'Content-Type': 'application/json',
   },
