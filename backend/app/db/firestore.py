@@ -15,10 +15,6 @@ def get_firestore_db():
     if _firestore_db is not None:
         return _firestore_db
 
-    # In local development / test without Google Application Default Credentials, return None early
-    if not settings.FIREBASE_CREDENTIALS_JSON and not (settings.FIREBASE_CREDENTIALS_PATH and os.path.exists(settings.FIREBASE_CREDENTIALS_PATH)):
-        _firestore_db = None
-        return None
 
     if not firebase_admin._apps:
         cred = None
@@ -41,7 +37,11 @@ def get_firestore_db():
         if cred:
             firebase_admin.initialize_app(cred, options)
         else:
-            return None
+            try:
+                firebase_admin.initialize_app(options=options)
+            except Exception as e:
+                logger.warning(f"Default Firebase initialization fallback failed: {e}")
+                return None
 
     try:
         _firestore_db = firestore.client()
