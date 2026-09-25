@@ -19,7 +19,7 @@ import { PageTransition } from '@/components/PageTransition';
 import { Card, CardBody, CardFooter, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Loading } from '@/components/ui/Loading';
-import { challengeApi, getApiErrorMessage } from '@/lib/api';
+import { challengeApi, getApiErrorMessage, resolveMediaUrl } from '@/lib/api';
 import type { ActiveRound, ChallengeStatus } from '@/types';
 
 function formatClock(totalSeconds: number): string {
@@ -399,7 +399,7 @@ export function ChallengePage() {
             <CardBody>
               {activeRound?.target_image_url ? (
                 <img
-                  src={activeRound.target_image_url}
+                  src={resolveMediaUrl(activeRound.target_image_url) || undefined}
                   alt="Target image to describe"
                   className="aspect-square w-full rounded-xl border border-slate-200 bg-slate-50 object-cover"
                 />
@@ -457,7 +457,7 @@ export function ChallengePage() {
                 <div className="space-y-3">
                   <div className="relative aspect-square w-full overflow-hidden rounded-xl border border-emerald-200 bg-emerald-50">
                     <img
-                      src={challenge.uploaded_image_url}
+                      src={resolveMediaUrl(challenge.uploaded_image_url) || undefined}
                       alt="Your uploaded generated image"
                       className="h-full w-full object-cover"
                     />

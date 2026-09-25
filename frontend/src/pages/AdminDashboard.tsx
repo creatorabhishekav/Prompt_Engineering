@@ -24,7 +24,7 @@ import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { Loading } from '@/components/ui/Loading';
 import { AiModeBadge } from '@/components/AiModeBadge';
-import { adminApi, getApiErrorMessage } from '@/lib/api';
+import { adminApi, getApiErrorMessage, resolveMediaUrl } from '@/lib/api';
 import type {
   AdminSubmission,
   AdminUserListItem,
@@ -671,7 +671,7 @@ export function AdminDashboardPage() {
                   <div>
                     <p className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-1">Generated Image</p>
                     {sub.image_url ? (
-                      <img src={sub.image_url} alt="Uploaded generated" className="aspect-square w-full rounded-lg border border-slate-200 object-cover" />
+                      <img src={resolveMediaUrl(sub.image_url) || undefined} alt="Uploaded generated" className="aspect-square w-full rounded-lg border border-slate-200 object-cover" />
                     ) : (
                       <div className="flex aspect-square items-center justify-center rounded-lg bg-slate-100 text-xs text-slate-400">
                         No image uploaded

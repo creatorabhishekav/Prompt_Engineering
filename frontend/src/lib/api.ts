@@ -51,6 +51,16 @@ const resolvedBaseUrl = rawBaseUrl.endsWith('/api')
 
 console.log('[API CONFIG] baseURL =', resolvedBaseUrl);
 
+export function resolveMediaUrl(path?: string | null): string | null {
+  if (!path) return null;
+  if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('data:')) {
+    return path;
+  }
+  const baseHost = resolvedBaseUrl.replace(/\/+api\/?$/, '');
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  return `${baseHost}${cleanPath}`;
+}
+
 const api = axios.create({
   baseURL: resolvedBaseUrl,
   headers: {

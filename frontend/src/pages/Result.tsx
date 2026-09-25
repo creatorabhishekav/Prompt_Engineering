@@ -13,7 +13,7 @@ import { PageTransition } from '@/components/PageTransition';
 import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Loading } from '@/components/ui/Loading';
-import { resultsApi, getApiErrorMessage } from '@/lib/api';
+import { resultsApi, getApiErrorMessage, resolveMediaUrl } from '@/lib/api';
 import type { ResultItem } from '@/types';
 
 interface MetricCategory {
@@ -146,7 +146,7 @@ export function ResultPage() {
                     </p>
                     {res.target_image_url ? (
                       <img
-                        src={res.target_image_url}
+                        src={resolveMediaUrl(res.target_image_url) || undefined}
                         alt="Target Image"
                         className="aspect-square w-full rounded-2xl border border-slate-200 object-cover shadow-sm"
                       />
@@ -163,7 +163,7 @@ export function ResultPage() {
                     </p>
                     {res.uploaded_image_url ? (
                       <img
-                        src={res.uploaded_image_url}
+                        src={resolveMediaUrl(res.uploaded_image_url) || undefined}
                         alt="Your Generated Image"
                         className="aspect-square w-full rounded-2xl border border-slate-200 object-cover shadow-sm"
                       />
