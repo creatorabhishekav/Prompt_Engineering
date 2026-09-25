@@ -738,15 +738,21 @@ export function AdminDashboardPage() {
 
                 <div className="grid gap-3 sm:grid-cols-3">
                   <div className="sm:col-span-2 space-y-2">
-                    <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Prompt Used</p>
-                    <p className="text-sm font-medium text-slate-800 bg-slate-50 p-3 rounded-lg border border-slate-100">
-                      {sub.prompt_used || '(No prompt entered)'}
-                    </p>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
+                        <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400 mb-1">First Prompt</p>
+                        <p className="text-xs font-medium text-slate-800">{sub.prompt_1 || sub.prompt_used || '(No first prompt)'}</p>
+                      </div>
+                      <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
+                        <p className="text-[10px] font-bold uppercase tracking-wide text-brand-600 mb-1">Follow-up Prompt</p>
+                        <p className="text-xs font-medium text-slate-800">{sub.prompt_2 || '(No follow-up prompt)'}</p>
+                      </div>
+                    </div>
                   </div>
                   <div>
-                    <p className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-1">Generated Image</p>
+                    <p className="text-xs font-bold uppercase tracking-wide text-emerald-700 mb-1">Final Image — Used for Evaluation</p>
                     {sub.image_url ? (
-                      <img src={resolveMediaUrl(sub.image_url) || undefined} alt="Uploaded generated" className="aspect-square w-full rounded-lg border border-slate-200 object-cover" />
+                      <img src={resolveMediaUrl(sub.image_url) || undefined} alt="Uploaded final generated" className="aspect-square w-full rounded-lg border border-slate-200 object-cover" />
                     ) : (
                       <div className="flex aspect-square items-center justify-center rounded-lg bg-slate-100 text-xs text-slate-400">
                         No image uploaded

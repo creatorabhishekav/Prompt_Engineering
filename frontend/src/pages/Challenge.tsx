@@ -52,16 +52,16 @@ export function ChallengePage() {
   const [challenge, setChallenge] = useState<ChallengeStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const [prompt, setPrompt] = useState('');
+  const [prompt1, setPrompt1] = useState('');
+  const [prompt2, setPrompt2] = useState('');
+  const [submittingP1, setSubmittingP1] = useState(false);
+  const [submittingP2, setSubmittingP2] = useState(false);
+
   const [remaining, setRemaining] = useState(0);
   const lastSyncRef = useRef({ remaining: 0, at: 0 });
 
   const [uploading, setUploading] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [savedAt, setSavedAt] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-
-  const applied = challenge?.prompt ?? '';
 
   const loadRounds = useCallback(async () => {
     setPhase('loading');
@@ -83,6 +83,8 @@ export function ChallengePage() {
   const applyChallenge = useCallback((data: ChallengeStatus) => {
     setChallenge(data);
     const next = data.status;
+    setPrompt1(data.prompt_1 || data.prompt || '');
+    setPrompt2(data.prompt_2 || '');
     if (next === 'in_progress') {
       setRemaining(data.remaining_seconds);
       lastSyncRef.current = { remaining: data.remaining_seconds, at: Date.now() };
@@ -98,7 +100,6 @@ export function ChallengePage() {
     try {
       const data = await challengeApi.start(round.id);
       setActiveRound({ ...round, target_image_url: data.target_image_url ?? round.target_image_url });
-      setPrompt(data.prompt);
       applyChallenge(data);
     } catch (e) {
       setError(getApiErrorMessage(e));
@@ -112,9 +113,6 @@ export function ChallengePage() {
     try {
       const data = await challengeApi.status(activeRound.id);
       applyChallenge(data);
-      if (data.status !== 'in_progress' && data.status !== 'not_started') {
-        setPrompt(data.prompt);
-      }
     } catch (e) {
       const msg = getApiErrorMessage(e);
       if (msg.toLowerCase().includes('not open')) {
@@ -125,7 +123,7 @@ export function ChallengePage() {
     }
   }, [activeRound, applyChallenge]);
 
-  // Server-synced countdown timer
+  // Overall round duration timer (not AI processing timer)
   useEffect(() => {
     if (phase !== 'playing') return;
     const tick = setInterval(() => {
@@ -148,25 +146,39 @@ export function ChallengePage() {
     return () => clearInterval(poll);
   }, [phase, resync]);
 
-  // Debounced prompt autosave
-  useEffect(() => {
-    if (phase !== 'playing' || !challenge || challenge.status !== 'in_progress') return;
-    if (prompt === applied) return;
-    const handle = setTimeout(async () => {
-      setSaving(true);
-      try {
-        const data = await challengeApi.savePrompt(challenge.id, prompt);
-        setChallenge(data);
-        setSavedAt(new Date().toLocaleTimeString());
-        lastSyncRef.current = { ...lastSyncRef.current, remaining: data.remaining_seconds };
-      } catch (e) {
-        setError(getApiErrorMessage(e));
-      } finally {
-        setSaving(false);
-      }
-    }, 800);
-    return () => clearTimeout(handle);
-  }, [prompt, phase, challenge, applied]);
+  const handlePrompt1Submit = async () => {
+    if (!challenge || !prompt1.trim()) {
+      setError('Please enter a valid First Prompt before submitting.');
+      return;
+    }
+    setSubmittingP1(true);
+    setError(null);
+    try {
+      const data = await challengeApi.submitPrompt1(challenge.id, prompt1);
+      applyChallenge(data);
+    } catch (e) {
+      setError(getApiErrorMessage(e));
+    } finally {
+      setSubmittingP1(false);
+    }
+  };
+
+  const handlePrompt2Submit = async () => {
+    if (!challenge || !prompt2.trim()) {
+      setError('Please enter a valid Follow-up Prompt before submitting.');
+      return;
+    }
+    setSubmittingP2(true);
+    setError(null);
+    try {
+      const data = await challengeApi.submitPrompt2(challenge.id, prompt2);
+      applyChallenge(data);
+    } catch (e) {
+      setError(getApiErrorMessage(e));
+    } finally {
+      setSubmittingP2(false);
+    }
+  };
 
   const handleFileUpload = async (file: File) => {
     if (!challenge || challenge.status !== 'in_progress') return;
@@ -174,7 +186,7 @@ export function ChallengePage() {
     setError(null);
     try {
       const data = await challengeApi.uploadImage(challenge.id, file);
-      setChallenge(data);
+      applyChallenge(data);
     } catch (e) {
       setError(getApiErrorMessage(e));
     } finally {
@@ -184,12 +196,18 @@ export function ChallengePage() {
 
   const submitFinal = async () => {
     if (!challenge || challenge.status !== 'in_progress') return;
-    if (!prompt.trim()) {
-      setError('Please write a prompt before submitting.');
+    const p1Submitted = Boolean(challenge.prompt_1 || (challenge.prompt && !challenge.prompt_2));
+    const p2Submitted = Boolean(challenge.prompt_2);
+    if (!p1Submitted) {
+      setError('You must submit First Prompt before submitting final challenge.');
+      return;
+    }
+    if (!p2Submitted) {
+      setError('You must submit Follow-up Prompt before submitting final challenge.');
       return;
     }
     if (!challenge.uploaded_image_url) {
-      setError('Please upload your generated image before submitting.');
+      setError('Please upload your final generated image before submitting.');
       return;
     }
     setBusy(true);
@@ -316,6 +334,9 @@ export function ChallengePage() {
     );
   }
 
+  const p1Submitted = Boolean(challenge?.prompt_1 || (challenge?.prompt && !challenge?.prompt_2));
+  const p2Submitted = Boolean(challenge?.prompt_2);
+
   // playing | locked
   return (
     <PageTransition>
@@ -339,8 +360,8 @@ export function ChallengePage() {
                 <span className={`rounded-full px-2.5 py-1 text-xs font-semibold capitalize ${statusColor(challenge?.status ?? '')}`}>
                   {challenge?.status?.replace('_', ' ') ?? ''}
                 </span>
-                {phase === 'locked' && savedAt && (
-                  <span className="text-xs text-slate-400">Submitted at {savedAt}</span>
+                {phase === 'locked' && (
+                  <span className="text-xs text-slate-400">Submission locked</span>
                 )}
               </div>
             </div>
@@ -370,10 +391,10 @@ export function ChallengePage() {
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="space-y-1">
               <h3 className="font-bold text-brand-900">
-                Step 1: Write prompt &nbsp;➔&nbsp; Step 2: Generate in Gemini &nbsp;➔&nbsp; Step 3: Upload generated image below
+                Two-Prompt Flow: Step 1 First Prompt &nbsp;➔&nbsp; Step 2 Follow-up Prompt &nbsp;➔&nbsp; Step 3 Upload Final Image
               </h3>
               <p className="text-sm text-brand-700">
-                Use your own external Gemini account to generate the image, download it, and upload it here before submitting.
+                Submit Prompt 1, generate in Gemini, submit Prompt 2 to refine, then upload the image generated from Prompt 2.
               </p>
             </div>
             <a
@@ -387,13 +408,14 @@ export function ChallengePage() {
           </div>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-3">
+        {/* Target Image + Prompt 1 + Prompt 2 + Final Upload Grid */}
+        <div className="grid gap-6 lg:grid-cols-2">
           {/* Target image */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <ImageIcon className="h-5 w-5 text-brand-600" />
-                1. Target image
+                Target Image
               </CardTitle>
             </CardHeader>
             <CardBody>
@@ -409,66 +431,124 @@ export function ChallengePage() {
                 </div>
               )}
               <p className="mt-3 text-xs text-slate-500">
-                Write a prompt describing this target image in detail.
+                Write two prompts (initial + follow-up) to reproduce this target image as closely as possible.
               </p>
             </CardBody>
           </Card>
 
-          {/* Prompt editor */}
-          <Card>
+          {/* Step 1: First Prompt */}
+          <Card className={p1Submitted ? 'border-emerald-200 bg-emerald-50/20' : ''}>
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
-                <span>2. Your prompt</span>
-                {saving && (
-                  <span className="flex items-center gap-1.5 text-xs font-medium text-slate-400">
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    Saving...
+                <span className="flex items-center gap-2">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-600 text-xs font-bold text-white">1</span>
+                  STEP 1 — FIRST PROMPT
+                </span>
+                {p1Submitted && (
+                  <span className="flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-100 px-2.5 py-1 rounded-full">
+                    <CheckCircle2 className="h-3.5 w-3.5" /> First Prompt Submitted
                   </span>
                 )}
               </CardTitle>
             </CardHeader>
             <CardBody className="space-y-4">
               <textarea
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                disabled={phase === 'locked'}
-                readOnly={phase === 'locked'}
-                rows={8}
-                placeholder="Describe the target image — subject, style, lighting, colors, objects, composition..."
-                className="w-full resize-none rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200 disabled:opacity-70"
+                value={prompt1}
+                onChange={(e) => setPrompt1(e.target.value)}
+                disabled={p1Submitted || phase === 'locked'}
+                readOnly={p1Submitted || phase === 'locked'}
+                rows={5}
+                placeholder="Enter your initial prompt describing the target image..."
+                className="w-full resize-none rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200 disabled:opacity-70 disabled:bg-slate-50"
               />
-              <div className="flex items-center justify-between text-xs text-slate-400">
-                <span>{prompt.length} / 4000 characters</span>
-                {savedAt && <span>Autosaved</span>}
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-slate-400">{prompt1.length} / 4000 characters</span>
+                {!p1Submitted && phase === 'playing' && (
+                  <Button
+                    size="sm"
+                    loading={submittingP1}
+                    disabled={!prompt1.trim() || submittingP1}
+                    onClick={() => void handlePrompt1Submit()}
+                  >
+                    Submit First Prompt
+                  </Button>
+                )}
               </div>
             </CardBody>
           </Card>
 
-          {/* Image upload & final submit */}
-          <Card>
+          {/* Step 2: Follow-up Prompt */}
+          <Card className={!p1Submitted ? 'opacity-60 pointer-events-none' : p2Submitted ? 'border-emerald-200 bg-emerald-50/20' : ''}>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Upload className="h-5 w-5 text-brand-600" />
-                3. Upload generated image
+              <CardTitle className="flex items-center justify-between">
+                <span className="flex items-center gap-2">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-600 text-xs font-bold text-white">2</span>
+                  STEP 2 — FOLLOW-UP PROMPT
+                </span>
+                {p2Submitted && (
+                  <span className="flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-100 px-2.5 py-1 rounded-full">
+                    <CheckCircle2 className="h-3.5 w-3.5" /> Follow-up Prompt Submitted
+                  </span>
+                )}
               </CardTitle>
             </CardHeader>
             <CardBody className="space-y-4">
+              <p className="text-xs text-slate-500">
+                Review the AI response from your first prompt, then write one follow-up prompt to refine or improve the result.
+              </p>
+              <textarea
+                value={prompt2}
+                onChange={(e) => setPrompt2(e.target.value)}
+                disabled={!p1Submitted || p2Submitted || phase === 'locked'}
+                readOnly={!p1Submitted || p2Submitted || phase === 'locked'}
+                rows={5}
+                placeholder={p1Submitted ? "Enter your follow-up prompt to refine the AI image..." : "Submit First Prompt to unlock Step 2"}
+                className="w-full resize-none rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200 disabled:opacity-70 disabled:bg-slate-50"
+              />
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-slate-400">{prompt2.length} / 4000 characters</span>
+                {p1Submitted && !p2Submitted && phase === 'playing' && (
+                  <Button
+                    size="sm"
+                    loading={submittingP2}
+                    disabled={!prompt2.trim() || submittingP2}
+                    onClick={() => void handlePrompt2Submit()}
+                  >
+                    Submit Follow-up Prompt
+                  </Button>
+                )}
+              </div>
+            </CardBody>
+          </Card>
+
+          {/* Final Image Upload & Submission */}
+          <Card className={!p2Submitted ? 'opacity-60 pointer-events-none' : ''}>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Upload className="h-5 w-5 text-brand-600" />
+                Final Image Upload & Evaluation
+              </CardTitle>
+            </CardHeader>
+            <CardBody className="space-y-4">
+              <p className="text-xs text-slate-500">
+                Upload the image generated from your second/follow-up prompt. Only the final image will be evaluated.
+              </p>
               {challenge?.uploaded_image_url ? (
                 <div className="space-y-3">
                   <div className="relative aspect-square w-full overflow-hidden rounded-xl border border-emerald-200 bg-emerald-50">
                     <img
                       src={resolveMediaUrl(challenge.uploaded_image_url) || undefined}
-                      alt="Your uploaded generated image"
+                      alt="Your uploaded final generated image"
                       className="h-full w-full object-cover"
                     />
                     <div className="absolute top-2 right-2 rounded-full bg-emerald-600 px-2.5 py-1 text-xs font-bold text-white shadow">
-                      Uploaded
+                      Final Image Uploaded
                     </div>
                   </div>
                   {phase === 'playing' && (
                     <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">
                       <RefreshCw className="h-3.5 w-3.5 text-slate-500" />
-                      Replace image
+                      Replace final image
                       <input
                         type="file"
                         accept="image/png,image/jpeg,image/jpg,image/webp"
@@ -484,8 +564,8 @@ export function ChallengePage() {
               ) : (
                 <div>
                   <label
-                    className={`flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed px-4 py-10 text-center transition ${
-                      phase === 'locked'
+                    className={`flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed px-4 py-8 text-center transition ${
+                      !p2Submitted || phase === 'locked'
                         ? 'border-slate-200 bg-slate-50 text-slate-400'
                         : 'cursor-pointer border-brand-300 bg-brand-50/40 text-brand-700 hover:border-brand-500 hover:bg-brand-50'
                     }`}
@@ -497,11 +577,11 @@ export function ChallengePage() {
                     )}
                     <div>
                       <p className="font-semibold text-sm">
-                        {uploading ? 'Uploading image...' : 'Click to select generated image'}
+                        {uploading ? 'Uploading image...' : 'Click to select final generated image'}
                       </p>
                       <p className="mt-1 text-xs text-slate-500">PNG, JPG, JPEG or WEBP (max 5MB)</p>
                     </div>
-                    {phase === 'playing' && (
+                    {phase === 'playing' && p2Submitted && (
                       <input
                         type="file"
                         accept="image/png,image/jpeg,image/jpg,image/webp"
@@ -522,14 +602,14 @@ export function ChallengePage() {
                   <Button
                     fullWidth
                     loading={busy}
-                    disabled={!prompt.trim() || !challenge?.uploaded_image_url || busy}
+                    disabled={!p1Submitted || !p2Submitted || !challenge?.uploaded_image_url || busy}
                     onClick={() => void submitFinal()}
                   >
                     <Send className="h-4 w-4" />
                     Submit final challenge
                   </Button>
                   <p className="text-center text-xs text-slate-400">
-                    Final submission cannot be changed once submitted.
+                    Only the final image generated after the second prompt will be evaluated.
                   </p>
                 </div>
               )}

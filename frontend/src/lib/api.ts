@@ -140,6 +140,14 @@ export const challengeApi = {
     api
       .put(`/submissions/${submissionId}/prompt`, { prompt })
       .then(unwrap<ChallengeStatus>),
+  submitPrompt1: (submissionId: string, prompt: string) =>
+    api
+      .post(`/submissions/${submissionId}/prompt-1`, { prompt })
+      .then(unwrap<ChallengeStatus>),
+  submitPrompt2: (submissionId: string, prompt: string) =>
+    api
+      .post(`/submissions/${submissionId}/prompt-2`, { prompt })
+      .then(unwrap<ChallengeStatus>),
   uploadImage: (submissionId: string, file: File) => {
     const formData = new FormData();
     formData.append('file', file);

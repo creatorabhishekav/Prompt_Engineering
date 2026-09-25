@@ -14,6 +14,8 @@ class SubmissionRead(BaseModel):
     target_image_id: str | None = None
     image_url: str | None = None
     prompt_used: str
+    prompt_1: str = ""
+    prompt_2: str = ""
     status: SubmissionStatus
     started_at_elapsed: int | None = None
     deadline_elapsed: int | None = None
@@ -26,6 +28,10 @@ class SubmissionUpdate(BaseModel):
     prompt: str = Field(default="", max_length=4000)
 
 
+class PromptSubmissionRequest(BaseModel):
+    prompt: str = Field(..., min_length=1, max_length=4000)
+
+
 class AdminSubmissionRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -36,6 +42,8 @@ class AdminSubmissionRead(BaseModel):
     round_id: str
     round_title: str
     prompt_used: str
+    prompt_1: str = ""
+    prompt_2: str = ""
     image_url: str | None = None
     status: SubmissionStatus
     started_at_elapsed: int | None = None

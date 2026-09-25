@@ -18,9 +18,14 @@ def test_leaderboard_ranking(
     start = client.post(f"/api/rounds/{rnd['id']}/start", headers=user2_headers)
     sub_id = start.json()["data"]["id"]
 
-    client.put(
-        f"/api/submissions/{sub_id}/prompt",
+    client.post(
+        f"/api/submissions/{sub_id}/prompt-1",
         json={"prompt": "cyberpunk neon city"},
+        headers=user2_headers,
+    )
+    client.post(
+        f"/api/submissions/{sub_id}/prompt-2",
+        json={"prompt": "cyberpunk neon city with reflections"},
         headers=user2_headers,
     )
 

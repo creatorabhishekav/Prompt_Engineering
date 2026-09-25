@@ -78,6 +78,8 @@ def start_round_challenge(round_id: str, user: CurrentUser):
             "round_id": round_id,
             "target_image_id": ti.get("id"),
             "prompt_used": "",
+            "prompt_1": "",
+            "prompt_2": "",
             "status": SubmissionStatus.IN_PROGRESS.value,
             "started_at_elapsed": 0,
         })
@@ -95,6 +97,8 @@ def start_round_challenge(round_id: str, user: CurrentUser):
             uploaded_image_url=sub.get("image_url"),
             status=sub["status"],
             prompt=sub.get("prompt_used", ""),
+            prompt_1=sub.get("prompt_1") or sub.get("prompt_used", ""),
+            prompt_2=sub.get("prompt_2", ""),
             started_at_elapsed=sub.get("started_at_elapsed", 0),
             remaining_seconds=rnd.get("time_limit_seconds", 600),
             deadline_elapsed=sub.get("deadline_elapsed"),
@@ -114,7 +118,18 @@ def save_prompt(submission_id: str, payload: SubmissionUpdate, user: CurrentUser
     sub = FirestoreCRUD.get_submission(submission_id)
     if not sub or sub.get("user_id") != user.id:
         return ApiResponse(data=None, message="Submission not found.")
-    updated = FirestoreCRUD.update_submission(submission_id, {"prompt_used": payload.prompt})
+    
+    p1 = sub.get("prompt_1") or sub.get("prompt_used", "")
+    p2 = sub.get("prompt_2", "")
+    
+    if not p1 and payload.prompt.strip():
+        updates = {"prompt_1": payload.prompt.strip(), "prompt_used": payload.prompt.strip()}
+    elif p1 and not p2 and payload.prompt.strip() and payload.prompt.strip() != p1:
+        updates = {"prompt_2": payload.prompt.strip(), "prompt_used": payload.prompt.strip()}
+    else:
+        updates = {"prompt_used": payload.prompt}
+
+    updated = FirestoreCRUD.update_submission(submission_id, updates)
     rnd = FirestoreCRUD.get_round(updated["round_id"]) or {}
     comp = FirestoreCRUD.get_competition(rnd.get("competition_id")) or {}
     ti = FirestoreCRUD.get_target_image_by_round(rnd.get("id")) or {}
@@ -132,11 +147,105 @@ def save_prompt(submission_id: str, payload: SubmissionUpdate, user: CurrentUser
             uploaded_image_url=updated.get("image_url"),
             status=updated.get("status", "in_progress"),
             prompt=updated.get("prompt_used", ""),
+            prompt_1=updated.get("prompt_1") or updated.get("prompt_used", ""),
+            prompt_2=updated.get("prompt_2", ""),
             remaining_seconds=rnd.get("time_limit_seconds", 600),
             scoring_status=sc.get("status"),
             total_score=sc.get("total_score"),
         ),
         message="Prompt saved."
+    )
+
+@router.post("/submissions/{submission_id}/prompt-1", response_model=ApiResponse[ChallengeStatusRead])
+def save_prompt_1(submission_id: str, payload: SubmissionUpdate, user: CurrentUser):
+    sub = FirestoreCRUD.get_submission(submission_id)
+    if not sub or sub.get("user_id") != user.id:
+        abort("Submission not found.", 404)
+    if sub.get("status") in (SubmissionStatus.SUBMITTED.value, SubmissionStatus.SCORED.value):
+        abort("Submission is locked.", 409)
+    if sub.get("prompt_1") and len(sub["prompt_1"].strip()) > 0:
+        abort("First prompt has already been submitted and locked.", 409)
+    
+    text = payload.prompt.strip()
+    if not text:
+        abort("First prompt cannot be empty.", 400)
+
+    updated = FirestoreCRUD.update_submission(submission_id, {
+        "prompt_1": text,
+        "prompt_used": text,
+    })
+    rnd = FirestoreCRUD.get_round(updated["round_id"]) or {}
+    comp = FirestoreCRUD.get_competition(rnd.get("competition_id")) or {}
+    ti = FirestoreCRUD.get_target_image_by_round(rnd.get("id")) or {}
+    sc = FirestoreCRUD.get_score_by_submission(submission_id) or {}
+
+    return ApiResponse(
+        data=ChallengeStatusRead(
+            id=updated["id"],
+            round_id=rnd.get("id", ""),
+            round_title=rnd.get("title", ""),
+            competition_title=comp.get("title", ""),
+            time_limit_seconds=rnd.get("time_limit_seconds", 600),
+            round_status=rnd.get("status", "active"),
+            target_image_url=ti.get("image_url"),
+            uploaded_image_url=updated.get("image_url"),
+            status=updated.get("status", "in_progress"),
+            prompt=updated.get("prompt_used", ""),
+            prompt_1=updated.get("prompt_1", ""),
+            prompt_2=updated.get("prompt_2", ""),
+            remaining_seconds=rnd.get("time_limit_seconds", 600),
+            scoring_status=sc.get("status"),
+            total_score=sc.get("total_score"),
+        ),
+        message="First prompt submitted successfully."
+    )
+
+@router.post("/submissions/{submission_id}/prompt-2", response_model=ApiResponse[ChallengeStatusRead])
+def save_prompt_2(submission_id: str, payload: SubmissionUpdate, user: CurrentUser):
+    sub = FirestoreCRUD.get_submission(submission_id)
+    if not sub or sub.get("user_id") != user.id:
+        abort("Submission not found.", 404)
+    if sub.get("status") in (SubmissionStatus.SUBMITTED.value, SubmissionStatus.SCORED.value):
+        abort("Submission is locked.", 409)
+    
+    p1 = sub.get("prompt_1") or sub.get("prompt_used", "")
+    if not p1 or len(p1.strip()) == 0:
+        abort("You must submit First Prompt before submitting Follow-up Prompt.", 400)
+    if sub.get("prompt_2") and len(sub["prompt_2"].strip()) > 0:
+        abort("Follow-up prompt has already been submitted and locked.", 409)
+    
+    text = payload.prompt.strip()
+    if not text:
+        abort("Follow-up prompt cannot be empty.", 400)
+
+    updated = FirestoreCRUD.update_submission(submission_id, {
+        "prompt_2": text,
+        "prompt_used": text,
+    })
+    rnd = FirestoreCRUD.get_round(updated["round_id"]) or {}
+    comp = FirestoreCRUD.get_competition(rnd.get("competition_id")) or {}
+    ti = FirestoreCRUD.get_target_image_by_round(rnd.get("id")) or {}
+    sc = FirestoreCRUD.get_score_by_submission(submission_id) or {}
+
+    return ApiResponse(
+        data=ChallengeStatusRead(
+            id=updated["id"],
+            round_id=rnd.get("id", ""),
+            round_title=rnd.get("title", ""),
+            competition_title=comp.get("title", ""),
+            time_limit_seconds=rnd.get("time_limit_seconds", 600),
+            round_status=rnd.get("status", "active"),
+            target_image_url=ti.get("image_url"),
+            uploaded_image_url=updated.get("image_url"),
+            status=updated.get("status", "in_progress"),
+            prompt=updated.get("prompt_used", ""),
+            prompt_1=updated.get("prompt_1", ""),
+            prompt_2=updated.get("prompt_2", ""),
+            remaining_seconds=rnd.get("time_limit_seconds", 600),
+            scoring_status=sc.get("status"),
+            total_score=sc.get("total_score"),
+        ),
+        message="Follow-up prompt submitted successfully."
     )
 
 @router.post("/submissions/{submission_id}/upload-image", response_model=ApiResponse[ChallengeStatusRead])
@@ -169,6 +278,8 @@ def upload_participant_generated_image(submission_id: str, user: CurrentUser, fi
             uploaded_image_url=updated.get("image_url"),
             status=updated.get("status", "in_progress"),
             prompt=updated.get("prompt_used", ""),
+            prompt_1=updated.get("prompt_1") or updated.get("prompt_used", ""),
+            prompt_2=updated.get("prompt_2", ""),
             remaining_seconds=rnd.get("time_limit_seconds", 600),
             scoring_status=sc.get("status"),
             total_score=sc.get("total_score"),
@@ -183,10 +294,16 @@ def submit_challenge(submission_id: str, user: CurrentUser):
         abort("Submission not found.", 404)
     if sub.get("status") in (SubmissionStatus.SUBMITTED.value, SubmissionStatus.SCORED.value):
         abort("You have already submitted for this round.", 409)
-    if not sub.get("prompt_used") or len(sub.get("prompt_used", "").strip()) == 0:
-        abort("Write a prompt before submitting.", 400)
+
+    p1 = sub.get("prompt_1") or sub.get("prompt_used", "")
+    p2 = sub.get("prompt_2", "")
+
+    if not p1 or len(p1.strip()) == 0:
+        abort("Submit First Prompt before submitting final challenge.", 400)
+    if not p2 or len(p2.strip()) == 0:
+        abort("Submit Follow-up Prompt before submitting final challenge.", 400)
     if not sub.get("image_url"):
-        abort("Upload your generated image before submitting.", 400)
+        abort("Upload your final generated image before submitting.", 400)
 
     rnd = FirestoreCRUD.get_round(sub["round_id"]) or {}
     ti = FirestoreCRUD.get_target_image_by_round(sub["round_id"]) or {}
@@ -194,10 +311,11 @@ def submit_challenge(submission_id: str, user: CurrentUser):
     target_img_url = ti.get("image_url")
     uploaded_img_url = sub.get("image_url")
 
+    # Evaluate ONLY the final image generated from prompt 2
     res = evaluate_submission(
         target_image_path=target_img_url,
         uploaded_image_path=uploaded_img_url,
-        participant_prompt=sub.get("prompt_used", ""),
+        participant_prompt=p2,
         reference_prompt=rnd.get("secret_prompt", ""),
     )
 
@@ -235,6 +353,8 @@ def submit_challenge(submission_id: str, user: CurrentUser):
             uploaded_image_url=updated.get("image_url"),
             status=updated.get("status", "scored"),
             prompt=updated.get("prompt_used", ""),
+            prompt_1=updated.get("prompt_1") or updated.get("prompt_used", ""),
+            prompt_2=updated.get("prompt_2", ""),
             remaining_seconds=0,
             submitted_at=updated.get("submitted_at"),
             scoring_status=sc["status"],

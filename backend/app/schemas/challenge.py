@@ -38,6 +38,8 @@ class ChallengeStatusRead(BaseModel):
     uploaded_image_url: str | None = None
     status: str
     prompt: str = ""
+    prompt_1: str = ""
+    prompt_2: str = ""
     started_at_elapsed: int | None = None
     remaining_seconds: int = 0
     deadline_elapsed: int | None = None

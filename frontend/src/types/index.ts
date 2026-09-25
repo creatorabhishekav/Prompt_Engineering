@@ -158,6 +158,8 @@ export interface Submission {
   target_image_id: string | null;
   image_url: string | null;
   prompt_used: string;
+  prompt_1?: string;
+  prompt_2?: string;
   status: SubmissionStatus;
   started_at_elapsed: number | null;
   deadline_elapsed: number | null;
@@ -174,6 +176,8 @@ export interface AdminSubmission {
   round_id: string;
   round_title: string;
   prompt_used: string;
+  prompt_1?: string;
+  prompt_2?: string;
   image_url: string | null;
   status: SubmissionStatus;
   started_at_elapsed: number | null;
@@ -241,6 +245,8 @@ export interface ChallengeStatus {
   uploaded_image_url: string | null;
   status: string;
   prompt: string;
+  prompt_1?: string;
+  prompt_2?: string;
   started_at_elapsed: number | null;
   remaining_seconds: number;
   deadline_elapsed: number | null;
@@ -275,6 +281,8 @@ export interface ResultItem {
   target_image_url: string | null;
   uploaded_image_url: string | null;
   prompt_used: string;
+  prompt_1?: string;
+  prompt_2?: string;
   submission_status: string;
   scoring_status: string;
   semantic_score: number;

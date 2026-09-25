@@ -15,6 +15,8 @@ class ResultItemRead(BaseModel):
     target_image_url: str | None = None
     uploaded_image_url: str | None = None
     prompt_used: str
+    prompt_1: str = ""
+    prompt_2: str = ""
     submission_status: str
     scoring_status: str
     clip_similarity: float | None = None
@@ -46,6 +48,8 @@ def my_results(user: CurrentUser):
                 target_image_url=ti.get("image_url"),
                 uploaded_image_url=sub.get("image_url"),
                 prompt_used=sub.get("prompt_used", ""),
+                prompt_1=sub.get("prompt_1") or sub.get("prompt_used", ""),
+                prompt_2=sub.get("prompt_2", ""),
                 submission_status=sub.get("status", "submitted"),
                 scoring_status=score.get("status", "PENDING"),
                 clip_similarity=score.get("clip_similarity"),
@@ -80,6 +84,8 @@ def get_submission_result(submission_id: str, user: CurrentUser):
         target_image_url=ti.get("image_url"),
         uploaded_image_url=sub.get("image_url"),
         prompt_used=sub.get("prompt_used", ""),
+        prompt_1=sub.get("prompt_1") or sub.get("prompt_used", ""),
+        prompt_2=sub.get("prompt_2", ""),
         submission_status=sub.get("status", "submitted"),
         scoring_status=score.get("status", "PENDING"),
         clip_similarity=score.get("clip_similarity"),

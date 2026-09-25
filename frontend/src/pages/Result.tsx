@@ -175,10 +175,16 @@ export function ResultPage() {
                   </div>
                 </div>
 
-                {/* Prompt Used */}
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="mb-1 text-xs font-bold uppercase tracking-wide text-slate-400">Your Prompt</p>
-                  <p className="text-sm font-medium text-slate-800">{res.prompt_used || '(Empty prompt)'}</p>
+                {/* Prompts Used */}
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                    <p className="mb-1 text-xs font-bold uppercase tracking-wide text-slate-400">Step 1: First Prompt</p>
+                    <p className="text-sm font-medium text-slate-800">{res.prompt_1 || res.prompt_used || '(Empty prompt)'}</p>
+                  </div>
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                    <p className="mb-1 text-xs font-bold uppercase tracking-wide text-brand-600">Step 2: Follow-up Prompt</p>
+                    <p className="text-sm font-medium text-slate-800">{res.prompt_2 || '(No follow-up prompt)'}</p>
+                  </div>
                 </div>
 
                 {/* Score Section */}

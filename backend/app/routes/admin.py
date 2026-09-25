@@ -298,6 +298,8 @@ def list_submissions(round_id: str, _: AdminUser):
             "round_id": s["round_id"],
             "round_title": r.get("title", ""),
             "prompt_used": s.get("prompt_used", ""),
+            "prompt_1": s.get("prompt_1") or s.get("prompt_used", ""),
+            "prompt_2": s.get("prompt_2", ""),
             "image_url": s.get("image_url"),
             "status": s.get("status", SubmissionStatus.SUBMITTED.value),
             "started_at_elapsed": s.get("started_at_elapsed"),
