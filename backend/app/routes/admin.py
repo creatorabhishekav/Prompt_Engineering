@@ -257,12 +257,15 @@ def upload_target_image(
     rnd = FirestoreCRUD.get_round(round_id)
     if not rnd:
         abort("Round not found.", 404)
+    from app.core.config import get_settings
+    cfg = get_settings()
     data = file.file.read()
     storage = get_storage_provider()
     url = storage.save(
         data=data,
         folder=f"rounds/{round_id}",
         filename=file.filename or "target.png",
+        max_bytes=cfg.max_target_upload_bytes,
     )
     ti = FirestoreCRUD.create_target_image({
         "round_id": round_id,

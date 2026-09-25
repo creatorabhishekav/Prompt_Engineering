@@ -11,7 +11,7 @@ class StorageProvider(ABC):
     name: str = "base"
 
     @abstractmethod
-    def save(self, *, data: bytes, folder: str, filename: str) -> str:
+    def save(self, *, data: bytes, folder: str, filename: str, max_bytes: int | None = None) -> str:
         """Persist ``data`` under ``folder`` and return the public URL path."""
         raise NotImplementedError
 

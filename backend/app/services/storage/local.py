@@ -21,8 +21,9 @@ class LocalStorageProvider(StorageProvider):
     def __init__(self, root: str | None = None):
         self.root = Path(root or settings.MEDIA_ROOT)
 
-    def save(self, *, data: bytes, folder: str, filename: str) -> str:
-        validate_image_file(data, max_bytes=settings.max_upload_bytes)
+    def save(self, *, data: bytes, folder: str, filename: str, max_bytes: int | None = None) -> str:
+        limit = max_bytes if max_bytes is not None else settings.max_upload_bytes
+        validate_image_file(data, max_bytes=limit)
 
         safe_folder = Path(folder)
         if not safe_folder.is_relative_to(Path("")) or ".." in safe_folder.parts:

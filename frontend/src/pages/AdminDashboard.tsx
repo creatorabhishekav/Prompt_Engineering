@@ -1110,9 +1110,15 @@ function UploadModal({
     }
   }, [round]);
 
+  const MAX_TARGET_IMAGE_SIZE_MB = 20;
+
   const submit = async () => {
     if (!round || !file) {
       onError('Choose an image file (PNG, JPEG or WEBP).');
+      return;
+    }
+    if (file.size > MAX_TARGET_IMAGE_SIZE_MB * 1024 * 1024) {
+      onError(`Target image size exceeds ${MAX_TARGET_IMAGE_SIZE_MB}MB limit.`);
       return;
     }
     setBusy(true);

@@ -162,8 +162,14 @@ export function ChallengePage() {
     }
   };
 
+  const MAX_PARTICIPANT_IMAGE_SIZE_MB = 20;
+
   const handleFirstFileUpload = async (file: File) => {
     if (!challenge || challenge.status !== 'in_progress') return;
+    if (file.size > MAX_PARTICIPANT_IMAGE_SIZE_MB * 1024 * 1024) {
+      setError(`Image size exceeds ${MAX_PARTICIPANT_IMAGE_SIZE_MB}MB limit.`);
+      return;
+    }
     setUploadingFirst(true);
     setError(null);
     try {
@@ -178,6 +184,10 @@ export function ChallengePage() {
 
   const handleFinalFileUpload = async (file: File) => {
     if (!challenge || challenge.status !== 'in_progress') return;
+    if (file.size > MAX_PARTICIPANT_IMAGE_SIZE_MB * 1024 * 1024) {
+      setError(`Image size exceeds ${MAX_PARTICIPANT_IMAGE_SIZE_MB}MB limit.`);
+      return;
+    }
     setUploadingFinal(true);
     setError(null);
     try {

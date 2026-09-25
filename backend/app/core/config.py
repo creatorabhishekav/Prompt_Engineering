@@ -55,7 +55,10 @@ class Settings(BaseSettings):
     # a placeholder until a later phase wires it up.
     STORAGE_PROVIDER: str = "local"
     MEDIA_ROOT: str = str(BASE_DIR / "media")
-    MAX_UPLOAD_MB: int = 5
+    # Target and Participant upload limit configurations
+    MAX_TARGET_IMAGE_MB: int = 20
+    MAX_PARTICIPANT_IMAGE_MB: int = 20
+    MAX_UPLOAD_MB: int = 20
 
     @property
     def cors_origin_list(self) -> list[str]:
@@ -64,6 +67,14 @@ class Settings(BaseSettings):
     @property
     def is_demo_mode(self) -> bool:
         return self.AI_MODE.lower() == "demo"
+
+    @property
+    def max_target_upload_bytes(self) -> int:
+        return self.MAX_TARGET_IMAGE_MB * 1024 * 1024
+
+    @property
+    def max_participant_upload_bytes(self) -> int:
+        return self.MAX_PARTICIPANT_IMAGE_MB * 1024 * 1024
 
     @property
     def max_upload_bytes(self) -> int:

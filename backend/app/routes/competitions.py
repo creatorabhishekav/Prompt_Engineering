@@ -202,12 +202,15 @@ def upload_first_generated_image(submission_id: str, user: CurrentUser, file: Up
     if sub.get("first_image_url"):
         abort("First image has already been uploaded and evaluated.", 409)
 
+    from app.core.config import get_settings
+    cfg = get_settings()
     data = file.file.read()
     storage = get_storage_provider()
     relative_url = storage.save(
         data=data,
         folder=f"submissions/{submission_id}",
         filename=file.filename or "first_generated.png",
+        max_bytes=cfg.max_participant_upload_bytes,
     )
 
     rnd = FirestoreCRUD.get_round(sub["round_id"]) or {}
@@ -291,12 +294,15 @@ def upload_final_generated_image(submission_id: str, user: CurrentUser, file: Up
     if not p2 or len(p2.strip()) == 0:
         abort("Submit Follow-up Prompt before uploading final image.", 400)
 
+    from app.core.config import get_settings
+    cfg = get_settings()
     data = file.file.read()
     storage = get_storage_provider()
     relative_url = storage.save(
         data=data,
         folder=f"submissions/{submission_id}",
         filename=file.filename or "final_generated.png",
+        max_bytes=cfg.max_participant_upload_bytes,
     )
 
     rnd = FirestoreCRUD.get_round(sub["round_id"]) or {}
