@@ -413,10 +413,19 @@ class FirestoreCRUD:
         return True
 
     @classmethod
+    def delete_scores_by_submission(cls, submission_id: str) -> None:
+        db = get_firestore_db()
+        if db:
+            docs = list(db.collection("scores").where("submission_id", "==", submission_id).stream())
+            for doc in docs:
+                doc.reference.delete()
+        keys_to_del = [k for k, v in _memory_db["scores"].items() if v.get("submission_id") == submission_id]
+        for k in keys_to_del:
+            del _memory_db["scores"][k]
+
+    @classmethod
     def delete_score_by_submission(cls, submission_id: str) -> None:
-        sc = cls.get_score_by_submission(submission_id)
-        if sc and sc.get("id"):
-            cls.delete_score(sc["id"])
+        cls.delete_scores_by_submission(submission_id)
 
 
 

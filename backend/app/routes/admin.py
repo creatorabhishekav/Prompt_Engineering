@@ -366,17 +366,22 @@ def delete_submission(submission_id: str, _: AdminUser):
     if not sub:
         abort("Submission not found.", 404)
 
-    # 1. Clean up associated media files (uploaded image, chat screenshot, etc.)
+    # 1. Clean up associated uploaded submission image files (never target round images)
     storage = get_storage_provider()
-    if sub.get("image_url"):
-        storage.delete(sub["image_url"])
-    if sub.get("chat_screenshot_url"):
-        storage.delete(sub["chat_screenshot_url"])
-    if sub.get("chat_screenshot_path"):
-        storage.delete(sub["chat_screenshot_path"])
+    image_paths = set()
+    for key in ("image_url", "first_image_url", "final_image_url", "chat_screenshot_url", "chat_screenshot_path"):
+        path = sub.get(key)
+        if path and not path.startswith("http://") and not path.startswith("https://"):
+            image_paths.add(path)
 
-    # 2. Delete associated score document
-    FirestoreCRUD.delete_score_by_submission(submission_id)
+    for path in image_paths:
+        try:
+            storage.delete(path)
+        except Exception:
+            pass
+
+    # 2. Delete all associated score documents for this exact submission
+    FirestoreCRUD.delete_scores_by_submission(submission_id)
 
     # 3. Delete submission document
     FirestoreCRUD.delete_submission(submission_id)

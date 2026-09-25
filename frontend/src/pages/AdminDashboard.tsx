@@ -736,7 +736,7 @@ export function AdminDashboardPage() {
                   </div>
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-3">
+                <div className="grid gap-3 sm:grid-cols-4">
                   <div className="sm:col-span-2 space-y-2">
                     <div className="grid gap-2 sm:grid-cols-2">
                       <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
@@ -750,12 +750,22 @@ export function AdminDashboardPage() {
                     </div>
                   </div>
                   <div>
-                    <p className="text-xs font-bold uppercase tracking-wide text-emerald-700 mb-1">Final Image — Used for Evaluation</p>
-                    {sub.image_url ? (
-                      <img src={resolveMediaUrl(sub.image_url) || undefined} alt="Uploaded final generated" className="aspect-square w-full rounded-lg border border-slate-200 object-cover" />
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500 mb-1">First Image (Practice)</p>
+                    {sub.first_image_url ? (
+                      <img src={resolveMediaUrl(sub.first_image_url) || undefined} alt="Uploaded first generated" className="aspect-square w-full rounded-lg border border-slate-200 object-cover" />
                     ) : (
-                      <div className="flex aspect-square items-center justify-center rounded-lg bg-slate-100 text-xs text-slate-400">
-                        No image uploaded
+                      <div className="flex aspect-square items-center justify-center rounded-lg bg-slate-100 text-[10px] text-slate-400">
+                        No image
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-emerald-700 mb-1">Final Image (Official)</p>
+                    {sub.final_image_url || sub.image_url ? (
+                      <img src={resolveMediaUrl(sub.final_image_url || sub.image_url) || undefined} alt="Uploaded final generated" className="aspect-square w-full rounded-lg border border-slate-200 object-cover" />
+                    ) : (
+                      <div className="flex aspect-square items-center justify-center rounded-lg bg-slate-100 text-[10px] text-slate-400">
+                        No image
                       </div>
                     )}
                   </div>

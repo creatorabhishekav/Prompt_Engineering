@@ -3,6 +3,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 from app.core.deps import CurrentUser
 from app.db.crud import FirestoreCRUD
+from app.models.domain_enums import UserRole
 from app.schemas.common import ApiResponse
 
 router = APIRouter(tags=["results"])
@@ -89,6 +90,11 @@ def get_submission_result(submission_id: str, user: CurrentUser):
     sub = FirestoreCRUD.get_submission(submission_id)
     if not sub:
         return ApiResponse(data=None, message="Submission not found.")
+    
+    # Ownership Check: Normal participants can only view their own submission results
+    if user.role != UserRole.ADMIN and sub.get("user_id") != user.id:
+        from app.services.errors import abort
+        abort("Access denied. You can only view your own submission results.", 403)
     score = FirestoreCRUD.get_score_by_submission_and_stage(submission_id, "FINAL") or FirestoreCRUD.get_score_by_submission(submission_id) or {}
     first_score = FirestoreCRUD.get_score_by_submission_and_stage(submission_id, "FIRST") or {}
     rnd = FirestoreCRUD.get_round(sub.get("round_id")) or {}
