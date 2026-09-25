@@ -193,6 +193,31 @@ export interface AdminSubmission {
   total_score?: number | null;
   clip_similarity?: number | null;
   evaluation_method?: string | null;
+  first_image_url?: string | null;
+  final_image_url?: string | null;
+  first_scoring_status?: string | null;
+  first_score?: number | null;
+  first_score_breakdown?: {
+    semantic_score?: number;
+    composition_score?: number;
+    objects_score?: number;
+    color_score?: number;
+    details_score?: number;
+    total_score?: number;
+    clip_similarity?: number;
+    evaluation_method?: string;
+  } | null;
+  final_score?: number | null;
+  final_score_breakdown?: {
+    semantic_score?: number;
+    composition_score?: number;
+    objects_score?: number;
+    color_score?: number;
+    details_score?: number;
+    total_score?: number;
+    clip_similarity?: number;
+    evaluation_method?: string;
+  } | null;
 }
 
 export interface AdminUserListItem {
@@ -243,6 +268,8 @@ export interface ChallengeStatus {
   round_status: LifecycleStatus;
   target_image_url: string | null;
   uploaded_image_url: string | null;
+  first_image_url?: string | null;
+  final_image_url?: string | null;
   status: string;
   prompt: string;
   prompt_1?: string;
@@ -253,6 +280,29 @@ export interface ChallengeStatus {
   submitted_at: string | null;
   scoring_status?: string | null;
   total_score?: number | null;
+  first_scoring_status?: string | null;
+  first_score?: number | null;
+  first_score_breakdown?: {
+    semantic_score?: number;
+    composition_score?: number;
+    objects_score?: number;
+    color_score?: number;
+    details_score?: number;
+    total_score?: number;
+    clip_similarity?: number;
+    evaluation_method?: string;
+  } | null;
+  final_score?: number | null;
+  final_score_breakdown?: {
+    semantic_score?: number;
+    composition_score?: number;
+    objects_score?: number;
+    color_score?: number;
+    details_score?: number;
+    total_score?: number;
+    clip_similarity?: number;
+    evaluation_method?: string;
+  } | null;
 }
 
 export interface Score {
@@ -271,6 +321,7 @@ export interface Score {
   created_at: string;
   clip_similarity?: number | null;
   evaluation_method?: string | null;
+  evaluation_stage?: 'FIRST' | 'FINAL' | null;
 }
 
 export interface ResultItem {
@@ -280,6 +331,8 @@ export interface ResultItem {
   competition_title: string;
   target_image_url: string | null;
   uploaded_image_url: string | null;
+  first_image_url?: string | null;
+  final_image_url?: string | null;
   prompt_used: string;
   prompt_1?: string;
   prompt_2?: string;
@@ -295,6 +348,29 @@ export interface ResultItem {
   submitted_at: string | null;
   clip_similarity?: number | null;
   evaluation_method?: string | null;
+  first_scoring_status?: string | null;
+  first_score?: number | null;
+  first_score_breakdown?: {
+    semantic_score?: number;
+    composition_score?: number;
+    objects_score?: number;
+    color_score?: number;
+    details_score?: number;
+    total_score?: number;
+    clip_similarity?: number;
+    evaluation_method?: string;
+  } | null;
+  final_score?: number | null;
+  final_score_breakdown?: {
+    semantic_score?: number;
+    composition_score?: number;
+    objects_score?: number;
+    color_score?: number;
+    details_score?: number;
+    total_score?: number;
+    clip_similarity?: number;
+    evaluation_method?: string;
+  } | null;
 }
 
 export interface LeaderboardEntry {

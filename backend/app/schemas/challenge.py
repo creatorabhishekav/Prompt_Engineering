@@ -36,6 +36,8 @@ class ChallengeStatusRead(BaseModel):
     round_status: LifecycleStatus
     target_image_url: str | None = None
     uploaded_image_url: str | None = None
+    first_image_url: str | None = None
+    final_image_url: str | None = None
     status: str
     prompt: str = ""
     prompt_1: str = ""
@@ -46,3 +48,8 @@ class ChallengeStatusRead(BaseModel):
     submitted_at: datetime | None = None
     scoring_status: str | None = None
     total_score: float | None = None
+    first_scoring_status: str | None = None
+    first_score: float | None = None
+    first_score_breakdown: dict | None = None
+    final_score: float | None = None
+    final_score_breakdown: dict | None = None

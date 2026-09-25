@@ -148,6 +148,24 @@ export const challengeApi = {
     api
       .post(`/submissions/${submissionId}/prompt-2`, { prompt })
       .then(unwrap<ChallengeStatus>),
+  uploadFirstImage: (submissionId: string, file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api
+      .post<Envelope<ChallengeStatus>>(`/submissions/${submissionId}/upload-first-image`, formData, {
+        headers: { 'Content-Type': undefined },
+      })
+      .then(unwrap<ChallengeStatus>);
+  },
+  uploadFinalImage: (submissionId: string, file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api
+      .post<Envelope<ChallengeStatus>>(`/submissions/${submissionId}/upload-final-image`, formData, {
+        headers: { 'Content-Type': undefined },
+      })
+      .then(unwrap<ChallengeStatus>);
+  },
   uploadImage: (submissionId: string, file: File) => {
     const formData = new FormData();
     formData.append('file', file);

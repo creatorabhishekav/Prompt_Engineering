@@ -23,18 +23,22 @@ def test_leaderboard_ranking(
         json={"prompt": "cyberpunk neon city"},
         headers=user2_headers,
     )
+    png_bytes = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15c4\x00\x00\x00\rIDATx\x9cc` \x05\x00\x00\x02\x00\x01H\xafA4\x00\x00\x00\x00IEND\xaeB`\x82"
+    import io
+
+    client.post(
+        f"/api/submissions/{sub_id}/upload-first-image",
+        files={"file": ("img1.png", io.BytesIO(png_bytes), "image/png")},
+        headers=user2_headers,
+    )
     client.post(
         f"/api/submissions/{sub_id}/prompt-2",
         json={"prompt": "cyberpunk neon city with reflections"},
         headers=user2_headers,
     )
-
-    png_bytes = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15c4\x00\x00\x00\rIDATx\x9cc` \x05\x00\x00\x02\x00\x01H\xafA4\x00\x00\x00\x00IEND\xaeB`\x82"
-    import io
-
     client.post(
-        f"/api/submissions/{sub_id}/upload-image",
-        files={"file": ("img.png", io.BytesIO(png_bytes), "image/png")},
+        f"/api/submissions/{sub_id}/upload-final-image",
+        files={"file": ("img2.png", io.BytesIO(png_bytes), "image/png")},
         headers=user2_headers,
     )
     client.post(f"/api/submissions/{sub_id}/submit", headers=user2_headers)

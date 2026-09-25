@@ -24,7 +24,11 @@ class LeaderboardEntry(BaseModel):
 def get_leaderboard(round_id: str | None = Query(default=None)):
     """Retrieve leaderboard rankings based on total AI scores (/80) from Firestore repository."""
     scores = FirestoreCRUD.list_scores()
-    valid_scores = [sc for sc in scores if sc.get("status") == ScoringStatus.SCORED.value]
+    valid_scores = [
+        sc for sc in scores
+        if sc.get("status") == ScoringStatus.SCORED.value
+        and sc.get("evaluation_stage", "FINAL") == "FINAL"
+    ]
 
     if round_id:
         valid_scores = [sc for sc in valid_scores if sc.get("round_id") == round_id]

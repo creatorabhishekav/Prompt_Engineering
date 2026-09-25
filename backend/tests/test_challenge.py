@@ -41,7 +41,19 @@ def test_challenge_full_flow_and_locking(
     )
     assert fail_p1_repeat.status_code == 409
 
-    # 5. Submit Prompt 2
+    # 5. Upload first generated image to trigger Stage 1 evaluation and unlock Prompt 2
+    png_bytes = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15c4\x00\x00\x00\rIDATx\x9cc` \x05\x00\x00\x02\x00\x01H\xafA4\x00\x00\x00\x00IEND\xaeB`\x82"
+    first_file = {"file": ("first.png", io.BytesIO(png_bytes), "image/png")}
+    upload_1 = client.post(
+        f"/api/submissions/{sub_id}/upload-first-image",
+        files=first_file,
+        headers=flow_headers,
+    )
+    assert upload_1.status_code == 200
+    assert upload_1.json()["data"]["first_image_url"] is not None
+    assert upload_1.json()["data"]["first_score"] is not None
+
+    # 6. Submit Prompt 2
     p2_res = client.post(
         f"/api/submissions/{sub_id}/prompt-2",
         json={"prompt": "add reflective puddles and vivid purple neon reflections"},
@@ -50,7 +62,7 @@ def test_challenge_full_flow_and_locking(
     assert p2_res.status_code == 200
     assert p2_res.json()["data"]["prompt_2"] == "add reflective puddles and vivid purple neon reflections"
 
-    # 6. Re-submitting Prompt 2 should be locked (409)
+    # 7. Re-submitting Prompt 2 should be locked (409)
     fail_p2_repeat = client.post(
         f"/api/submissions/{sub_id}/prompt-2",
         json={"prompt": "changed prompt 2"},
@@ -58,24 +70,24 @@ def test_challenge_full_flow_and_locking(
     )
     assert fail_p2_repeat.status_code == 409
 
-    # 7. Submit without final image should fail
+    # 8. Submit without final image should fail (400)
     fail_submit = client.post(
         f"/api/submissions/{sub_id}/submit", headers=flow_headers
     )
-    assert fail_submit.status_code == 400 or fail_submit.status_code == 409
+    assert fail_submit.status_code == 400
 
-    # 8. Upload final generated image
-    png_bytes = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15c4\x00\x00\x00\rIDATx\x9cc` \x05\x00\x00\x02\x00\x01H\xafA4\x00\x00\x00\x00IEND\xaeB`\x82"
-    file_payload = {"file": ("test_generated.png", io.BytesIO(png_bytes), "image/png")}
-    upload_res = client.post(
-        f"/api/submissions/{sub_id}/upload-image",
-        files=file_payload,
+    # 9. Upload final generated image (Stage 2 evaluation)
+    final_file = {"file": ("final.png", io.BytesIO(png_bytes), "image/png")}
+    upload_final = client.post(
+        f"/api/submissions/{sub_id}/upload-final-image",
+        files=final_file,
         headers=flow_headers,
     )
-    assert upload_res.status_code == 200
-    assert upload_res.json()["data"]["uploaded_image_url"] is not None
+    assert upload_final.status_code == 200
+    assert upload_final.json()["data"]["final_image_url"] is not None
+    assert upload_final.json()["data"]["final_score"] is not None
 
-    # 9. Final Submit
+    # 10. Final Submit
     submit_res = client.post(
         f"/api/submissions/{sub_id}/submit", headers=flow_headers
     )
@@ -85,7 +97,7 @@ def test_challenge_full_flow_and_locking(
     assert final_data["total_score"] is not None
     assert final_data["total_score"] <= 80.0
 
-    # 10. Double submit should be rejected
+    # 11. Double submit should be rejected
     double_res = client.post(
         f"/api/submissions/{sub_id}/submit", headers=flow_headers
     )

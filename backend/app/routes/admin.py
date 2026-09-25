@@ -289,7 +289,8 @@ def list_submissions(round_id: str, _: AdminUser):
     for s in subs:
         u = users_map.get(s["user_id"], {})
         r = rnds_map.get(s["round_id"], {})
-        sc = FirestoreCRUD.get_score_by_submission(s["id"]) or {}
+        sc = FirestoreCRUD.get_score_by_submission_and_stage(s["id"], "FINAL") or FirestoreCRUD.get_score_by_submission(s["id"]) or {}
+        first_sc = FirestoreCRUD.get_score_by_submission_and_stage(s["id"], "FIRST") or {}
         payload.append({
             "id": s["id"],
             "user_id": s["user_id"],
@@ -300,7 +301,9 @@ def list_submissions(round_id: str, _: AdminUser):
             "prompt_used": s.get("prompt_used", ""),
             "prompt_1": s.get("prompt_1") or s.get("prompt_used", ""),
             "prompt_2": s.get("prompt_2", ""),
-            "image_url": s.get("image_url"),
+            "image_url": s.get("final_image_url") or s.get("image_url"),
+            "first_image_url": s.get("first_image_url"),
+            "final_image_url": s.get("final_image_url") or s.get("image_url"),
             "status": s.get("status", SubmissionStatus.SUBMITTED.value),
             "started_at_elapsed": s.get("started_at_elapsed"),
             "deadline_elapsed": s.get("deadline_elapsed"),
@@ -315,6 +318,16 @@ def list_submissions(round_id: str, _: AdminUser):
             "total_score": sc.get("total_score"),
             "clip_similarity": sc.get("clip_similarity"),
             "evaluation_method": sc.get("evaluation_method"),
+            "first_scoring_status": first_sc.get("status"),
+            "first_score": first_sc.get("total_score"),
+            "first_score_breakdown": {
+                "semantic_score": first_sc.get("semantic_score", 0.0),
+                "composition_score": first_sc.get("composition_score", 0.0),
+                "objects_score": first_sc.get("objects_score", 0.0),
+                "color_score": first_sc.get("color_score", 0.0),
+                "details_score": first_sc.get("details_score", 0.0),
+                "total_score": first_sc.get("total_score", 0.0),
+            } if first_sc.get("total_score") is not None else None,
         })
     return ApiResponse(data=payload, message="OK")
 

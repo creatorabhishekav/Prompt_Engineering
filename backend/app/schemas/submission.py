@@ -45,6 +45,8 @@ class AdminSubmissionRead(BaseModel):
     prompt_1: str = ""
     prompt_2: str = ""
     image_url: str | None = None
+    first_image_url: str | None = None
+    final_image_url: str | None = None
     status: SubmissionStatus
     started_at_elapsed: int | None = None
     deadline_elapsed: int | None = None
@@ -58,6 +60,9 @@ class AdminSubmissionRead(BaseModel):
     color_score: float | None = None
     details_score: float | None = None
     total_score: float | None = None
+    first_scoring_status: str | None = None
+    first_score: float | None = None
+    first_score_breakdown: dict | None = None
 
 
 class ScoreRead(BaseModel):

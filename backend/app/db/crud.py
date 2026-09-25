@@ -348,13 +348,36 @@ class FirestoreCRUD:
     def get_score_by_submission(cls, submission_id: str) -> Optional[Dict[str, Any]]:
         db = get_firestore_db()
         if db:
-            docs = list(db.collection("scores").where("submission_id", "==", submission_id).limit(1).stream())
+            docs = list(db.collection("scores").where("submission_id", "==", submission_id).limit(10).stream())
             if docs:
+                for doc in docs:
+                    d = doc.to_dict()
+                    if d.get("evaluation_stage") in ("FINAL", None):
+                        return dict(d, id=doc.id)
                 return dict(docs[0].to_dict(), id=docs[0].id)
+            return None
+        scores_for_sub = [sc for sc in _memory_db["scores"].values() if sc.get("submission_id") == submission_id]
+        if scores_for_sub:
+            for sc in scores_for_sub:
+                if sc.get("evaluation_stage") in ("FINAL", None):
+                    return sc
+            return scores_for_sub[0]
+        return None
+
+    @classmethod
+    def get_score_by_submission_and_stage(cls, submission_id: str, stage: str) -> Optional[Dict[str, Any]]:
+        db = get_firestore_db()
+        if db:
+            docs = list(db.collection("scores").where("submission_id", "==", submission_id).stream())
+            for doc in docs:
+                d = doc.to_dict()
+                if d.get("evaluation_stage") == stage or (stage == "FINAL" and d.get("evaluation_stage") is None):
+                    return dict(d, id=doc.id)
             return None
         for sc in _memory_db["scores"].values():
             if sc.get("submission_id") == submission_id:
-                return sc
+                if sc.get("evaluation_stage") == stage or (stage == "FINAL" and sc.get("evaluation_stage") is None):
+                    return sc
         return None
 
     @classmethod

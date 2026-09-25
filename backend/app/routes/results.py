@@ -14,6 +14,8 @@ class ResultItemRead(BaseModel):
     competition_title: str
     target_image_url: str | None = None
     uploaded_image_url: str | None = None
+    first_image_url: str | None = None
+    final_image_url: str | None = None
     prompt_used: str
     prompt_1: str = ""
     prompt_2: str = ""
@@ -29,13 +31,17 @@ class ResultItemRead(BaseModel):
     total_score: float = 0.0         # max 80
     feedback: str | None = None
     submitted_at: datetime | None = None
+    first_scoring_status: str | None = None
+    first_score: float | None = None
+    first_score_breakdown: dict | None = None
 
 @router.get("/results/me", response_model=ApiResponse[list[ResultItemRead]])
 def my_results(user: CurrentUser):
     subs = FirestoreCRUD.list_submissions_for_user(user.id)
     items = []
     for sub in subs:
-        score = FirestoreCRUD.get_score_by_submission(sub["id"]) or {}
+        score = FirestoreCRUD.get_score_by_submission_and_stage(sub["id"], "FINAL") or FirestoreCRUD.get_score_by_submission(sub["id"]) or {}
+        first_score = FirestoreCRUD.get_score_by_submission_and_stage(sub["id"], "FIRST") or {}
         rnd = FirestoreCRUD.get_round(sub.get("round_id")) or {}
         comp = FirestoreCRUD.get_competition(rnd.get("competition_id")) or {}
         ti = FirestoreCRUD.get_target_image_by_round(sub.get("round_id")) or {}
@@ -46,7 +52,9 @@ def my_results(user: CurrentUser):
                 round_title=rnd.get("title", ""),
                 competition_title=comp.get("title", ""),
                 target_image_url=ti.get("image_url"),
-                uploaded_image_url=sub.get("image_url"),
+                uploaded_image_url=sub.get("final_image_url") or sub.get("image_url"),
+                first_image_url=sub.get("first_image_url"),
+                final_image_url=sub.get("final_image_url") or sub.get("image_url"),
                 prompt_used=sub.get("prompt_used", ""),
                 prompt_1=sub.get("prompt_1") or sub.get("prompt_used", ""),
                 prompt_2=sub.get("prompt_2", ""),
@@ -62,6 +70,16 @@ def my_results(user: CurrentUser):
                 total_score=score.get("total_score", 0.0),
                 feedback=score.get("feedback"),
                 submitted_at=sub.get("submitted_at"),
+                first_scoring_status=first_score.get("status"),
+                first_score=first_score.get("total_score"),
+                first_score_breakdown={
+                    "semantic_score": first_score.get("semantic_score", 0.0),
+                    "composition_score": first_score.get("composition_score", 0.0),
+                    "objects_score": first_score.get("objects_score", 0.0),
+                    "color_score": first_score.get("color_score", 0.0),
+                    "details_score": first_score.get("details_score", 0.0),
+                    "total_score": first_score.get("total_score", 0.0),
+                } if first_score.get("total_score") is not None else None,
             )
         )
     return ApiResponse(data=items, message="OK")
@@ -71,7 +89,8 @@ def get_submission_result(submission_id: str, user: CurrentUser):
     sub = FirestoreCRUD.get_submission(submission_id)
     if not sub:
         return ApiResponse(data=None, message="Submission not found.")
-    score = FirestoreCRUD.get_score_by_submission(submission_id) or {}
+    score = FirestoreCRUD.get_score_by_submission_and_stage(submission_id, "FINAL") or FirestoreCRUD.get_score_by_submission(submission_id) or {}
+    first_score = FirestoreCRUD.get_score_by_submission_and_stage(submission_id, "FIRST") or {}
     rnd = FirestoreCRUD.get_round(sub.get("round_id")) or {}
     comp = FirestoreCRUD.get_competition(rnd.get("competition_id")) or {}
     ti = FirestoreCRUD.get_target_image_by_round(sub.get("round_id")) or {}
@@ -82,7 +101,9 @@ def get_submission_result(submission_id: str, user: CurrentUser):
         round_title=rnd.get("title", ""),
         competition_title=comp.get("title", ""),
         target_image_url=ti.get("image_url"),
-        uploaded_image_url=sub.get("image_url"),
+        uploaded_image_url=sub.get("final_image_url") or sub.get("image_url"),
+        first_image_url=sub.get("first_image_url"),
+        final_image_url=sub.get("final_image_url") or sub.get("image_url"),
         prompt_used=sub.get("prompt_used", ""),
         prompt_1=sub.get("prompt_1") or sub.get("prompt_used", ""),
         prompt_2=sub.get("prompt_2", ""),
@@ -98,5 +119,15 @@ def get_submission_result(submission_id: str, user: CurrentUser):
         total_score=score.get("total_score", 0.0),
         feedback=score.get("feedback"),
         submitted_at=sub.get("submitted_at"),
+        first_scoring_status=first_score.get("status"),
+        first_score=first_score.get("total_score"),
+        first_score_breakdown={
+            "semantic_score": first_score.get("semantic_score", 0.0),
+            "composition_score": first_score.get("composition_score", 0.0),
+            "objects_score": first_score.get("objects_score", 0.0),
+            "color_score": first_score.get("color_score", 0.0),
+            "details_score": first_score.get("details_score", 0.0),
+            "total_score": first_score.get("total_score", 0.0),
+        } if first_score.get("total_score") is not None else None,
     )
     return ApiResponse(data=data, message="OK")
