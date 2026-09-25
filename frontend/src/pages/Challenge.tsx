@@ -1,16 +1,14 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   AlertCircle,
   CheckCircle2,
-  Clock,
   ExternalLink,
   Image as ImageIcon,
   Loader2,
   Lock,
   Play,
-  RefreshCw,
   Send,
   Trophy,
   Upload,
@@ -21,13 +19,6 @@ import { Button } from '@/components/ui/Button';
 import { Loading } from '@/components/ui/Loading';
 import { challengeApi, getApiErrorMessage, resolveMediaUrl } from '@/lib/api';
 import type { ActiveRound, ChallengeStatus } from '@/types';
-
-function formatClock(totalSeconds: number): string {
-  const seconds = Math.max(0, Math.floor(totalSeconds));
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-}
 
 function statusColor(status: string): string {
   switch (status) {
@@ -57,9 +48,6 @@ export function ChallengePage() {
   const [submittingP1, setSubmittingP1] = useState(false);
   const [submittingP2, setSubmittingP2] = useState(false);
 
-  const [remaining, setRemaining] = useState(0);
-  const lastSyncRef = useRef({ remaining: 0, at: 0 });
-
   const [uploadingFirst, setUploadingFirst] = useState(false);
   const [uploadingFinal, setUploadingFinal] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -84,11 +72,20 @@ export function ChallengePage() {
   const applyChallenge = useCallback((data: ChallengeStatus) => {
     setChallenge(data);
     const next = data.status;
-    setPrompt1(data.prompt_1 || data.prompt || '');
-    setPrompt2(data.prompt_2 || '');
+
+    // Synchronize prompt text from server response (authoritative)
+    // If backend returns prompt_1 or prompt_2, ensure local state matches
+    if (data.prompt_1 !== undefined && data.prompt_1 !== null) {
+      setPrompt1(data.prompt_1);
+    } else if (data.prompt) {
+      setPrompt1(data.prompt);
+    }
+
+    if (data.prompt_2 !== undefined && data.prompt_2 !== null) {
+      setPrompt2(data.prompt_2);
+    }
+
     if (next === 'in_progress') {
-      setRemaining(data.remaining_seconds);
-      lastSyncRef.current = { remaining: data.remaining_seconds, at: Date.now() };
       setPhase('playing');
     } else {
       setPhase('locked');
@@ -124,26 +121,10 @@ export function ChallengePage() {
     }
   }, [activeRound, applyChallenge]);
 
-  // Overall round duration timer (not AI processing timer)
+  // Poll server state periodically without running a countdown timer
   useEffect(() => {
     if (phase !== 'playing') return;
-    const tick = setInterval(() => {
-      const sync = lastSyncRef.current;
-      const elapsed = Math.floor((Date.now() - sync.at) / 1000);
-      const next = Math.max(0, sync.remaining - elapsed);
-      setRemaining(next);
-      if (next === 0) {
-        lastSyncRef.current = { remaining: 0, at: Date.now() };
-        void resync();
-      }
-    }, 1000);
-    return () => clearInterval(tick);
-  }, [phase, resync]);
-
-  // Poll server state
-  useEffect(() => {
-    if (phase !== 'playing') return;
-    const poll = setInterval(() => void resync(), 5000);
+    const poll = setInterval(() => void resync(), 10000);
     return () => clearInterval(poll);
   }, [phase, resync]);
 
@@ -323,10 +304,6 @@ export function ChallengePage() {
                       {round.description && (
                         <p className="text-sm text-slate-500">{round.description}</p>
                       )}
-                      <div className="flex items-center gap-1.5 text-sm text-slate-500">
-                        <Clock className="h-4 w-4 text-brand-500" />
-                        {formatClock(round.time_limit_seconds)} limit
-                      </div>
                       {!round.target_image_url && (
                         <div className="flex items-start gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
                           <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
@@ -362,6 +339,7 @@ export function ChallengePage() {
   const p2Unlocked = p1Submitted && (firstImageUploaded || firstScoreDone);
   const p2Submitted = Boolean(challenge?.prompt_2);
   const finalImageUploaded = Boolean(challenge?.final_image_url || challenge?.uploaded_image_url);
+  const finalScoreDone = challenge?.final_score !== undefined && challenge?.final_score !== null;
 
   // playing | locked
   return (
@@ -369,12 +347,12 @@ export function ChallengePage() {
       <div className="space-y-6">
         <Header />
 
-        {/* Timer + status bar */}
+        {/* Challenge Status Header (No Countdown Timer) */}
         <Card className="overflow-hidden">
           <div
             className={`h-1.5 ${phase === 'playing' ? 'bg-gradient-to-r from-brand-500 to-accent-600' : 'bg-emerald-500'}`}
           />
-          <CardBody className="flex flex-wrap items-center justify-between gap-4">
+          <CardBody className="flex flex-wrap items-center justify-between gap-4 py-4">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
                 {activeRound?.competition_title}
@@ -382,45 +360,31 @@ export function ChallengePage() {
               <h2 className="mt-0.5 text-xl font-bold text-slate-900">
                 Round {activeRound?.round_number}: {activeRound?.title}
               </h2>
-              <div className="mt-2 flex items-center gap-2">
-                <span className={`rounded-full px-2.5 py-1 text-xs font-semibold capitalize ${statusColor(challenge?.status ?? '')}`}>
-                  {challenge?.status?.replace('_', ' ') ?? ''}
-                </span>
-                {phase === 'locked' && (
-                  <span className="text-xs text-slate-400">Submission locked</span>
-                )}
-              </div>
             </div>
-            {phase === 'playing' && (
-              <div
-                className={`flex items-center gap-2 rounded-2xl px-5 py-3 text-2xl font-extrabold tabular-nums ${
-                  remaining <= 30 ? 'bg-rose-50 text-rose-600' : 'bg-brand-50 text-brand-700'
-                }`}
-              >
-                <Clock className="h-6 w-6" />
-                {formatClock(remaining)}
-              </div>
-            )}
-            {phase === 'locked' && (
-              <div className="flex items-center gap-2 rounded-2xl bg-emerald-50 px-5 py-3 font-bold text-emerald-700">
-                <Lock className="h-5 w-5" />
-                Submission locked
-              </div>
-            )}
+            <div className="flex items-center gap-2">
+              <span className={`rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wider ${statusColor(challenge?.status ?? '')}`}>
+                {challenge?.status?.replace('_', ' ') ?? ''}
+              </span>
+              {phase === 'locked' && (
+                <span className="flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">
+                  <Lock className="h-3.5 w-3.5" /> Locked
+                </span>
+              )}
+            </div>
           </CardBody>
         </Card>
 
         {error && <ErrorBanner message={error} />}
 
-        {/* Staged Scoring Banner */}
+        {/* Gemini & Challenge Instructions Banner */}
         <div className="rounded-2xl border border-brand-200 bg-gradient-to-r from-brand-50 to-indigo-50 p-4 sm:p-5">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="space-y-1">
               <h3 className="font-bold text-brand-900">
-                Staged ML Scoring Flow: Step 1 Prompt ➔ First Image ML Score (/80 Practice) ➔ Step 2 Prompt ➔ Final Image ML Score (/80 Official)
+                Reverse Prompt Engineering: Two-Stage Competition Flow
               </h3>
               <p className="text-sm text-brand-700">
-                Both attempts are evaluated out of 80 points. Only your FINAL attempt score is used on the Leaderboard!
+                Submit Prompt 1 $\rightarrow$ Upload First Image $\rightarrow$ See Practice Score (/80) $\rightarrow$ Submit Follow-up Prompt 2 $\rightarrow$ Upload Final Image $\rightarrow$ Final Leaderboard Score (/80).
               </p>
             </div>
             <a
@@ -437,14 +401,14 @@ export function ChallengePage() {
         {/* Target Image & Sequential Challenge Steps Grid */}
         <div className="grid gap-6 lg:grid-cols-2">
           {/* Target image */}
-          <Card>
+          <Card className="h-full">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <ImageIcon className="h-5 w-5 text-brand-600" />
                 Target Image
               </CardTitle>
             </CardHeader>
-            <CardBody>
+            <CardBody className="space-y-3">
               {activeRound?.target_image_url ? (
                 <img
                   src={resolveMediaUrl(activeRound.target_image_url) || undefined}
@@ -456,159 +420,158 @@ export function ChallengePage() {
                   No target image
                 </div>
               )}
-              <p className="mt-3 text-xs text-slate-500">
-                Write Prompt 1, evaluate your first generated image to see intermediate feedback, then write Follow-up Prompt 2 to achieve your maximum final score!
-              </p>
-            </CardBody>
-          </Card>
-
-          {/* STEP 1: First Prompt */}
-          <Card className={p1Submitted ? 'border-emerald-200 bg-emerald-50/20' : ''}>
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <span className="flex items-center gap-2">
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-600 text-xs font-bold text-white">1</span>
-                  STEP 1 — FIRST PROMPT
-                </span>
-                {p1Submitted && (
-                  <span className="flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-100 px-2.5 py-1 rounded-full">
-                    <CheckCircle2 className="h-3.5 w-3.5" /> First Prompt Locked
-                  </span>
-                )}
-              </CardTitle>
-            </CardHeader>
-            <CardBody className="space-y-4">
-              <textarea
-                value={prompt1}
-                onChange={(e) => setPrompt1(e.target.value)}
-                disabled={p1Submitted || phase === 'locked'}
-                readOnly={p1Submitted || phase === 'locked'}
-                rows={4}
-                placeholder="Enter your initial prompt describing the target image..."
-                className="w-full resize-none rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200 disabled:opacity-70 disabled:bg-slate-50"
-              />
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-slate-400">{prompt1.length} / 4000 characters</span>
-                {!p1Submitted && phase === 'playing' && (
-                  <Button
-                    size="sm"
-                    loading={submittingP1}
-                    disabled={!prompt1.trim() || submittingP1}
-                    onClick={() => void handlePrompt1Submit()}
-                  >
-                    Submit First Prompt
-                  </Button>
-                )}
-              </div>
-            </CardBody>
-          </Card>
-
-          {/* STEP 1 EVALUATION: Upload First Image & Stage 1 ML Score */}
-          <Card className={!p1Submitted ? 'opacity-60 pointer-events-none' : firstScoreDone ? 'border-emerald-200 bg-emerald-50/20' : ''}>
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <span className="flex items-center gap-2">
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-600 text-xs font-bold text-white">1.5</span>
-                  STAGE 1 — ML EVALUATION (PRACTICE /80)
-                </span>
-                {firstScoreDone && (
-                  <span className="flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-100 px-2.5 py-1 rounded-full">
-                    <CheckCircle2 className="h-3.5 w-3.5" /> Stage 1 Evaluated
-                  </span>
-                )}
-              </CardTitle>
-            </CardHeader>
-            <CardBody className="space-y-4">
               <p className="text-xs text-slate-500">
-                Upload the image generated from Prompt 1 to trigger instant Stage 1 ML Evaluation out of 80 points.
+                Write Prompt 1, upload your first generated image to receive practice ML feedback, then refine with Follow-up Prompt 2 for your final leaderboard attempt!
               </p>
-
-              {uploadingFirst && (
-                <div className="flex flex-col items-center justify-center py-6 gap-2 rounded-xl bg-brand-50/50 border border-brand-100">
-                  <Loader2 className="h-8 w-8 animate-spin text-brand-600" />
-                  <p className="text-xs font-semibold text-brand-800">Evaluating First Image with CLIP ML Model...</p>
-                  <p className="text-[11px] text-slate-500">Calculating semantic, composition, objects, color, and detail scores.</p>
-                </div>
-              )}
-
-              {!uploadingFirst && challenge?.first_image_url ? (
-                <div className="space-y-3">
-                  <div className="relative aspect-square w-full overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
-                    <img
-                      src={resolveMediaUrl(challenge.first_image_url) || undefined}
-                      alt="First attempt generated image"
-                      className="h-full w-full object-cover"
-                    />
-                    <div className="absolute top-2 right-2 rounded-full bg-brand-600 px-2.5 py-1 text-xs font-bold text-white shadow">
-                      First Image
-                    </div>
-                  </div>
-
-                  {firstScoreDone && (
-                    <div className="rounded-xl border border-brand-200 bg-brand-50 p-4 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-[11px] font-bold uppercase tracking-wider text-brand-700">First Attempt Score (Practice)</p>
-                          <p className="text-xs text-slate-500">Intermediate score — not on leaderboard</p>
-                        </div>
-                        <div className="text-2xl font-black text-brand-900">
-                          {challenge.first_score} <span className="text-xs text-brand-600 font-bold">/ 80</span>
-                        </div>
-                      </div>
-                      {challenge.first_score_breakdown && (
-                        <div className="grid grid-cols-5 gap-1 pt-2 border-t border-brand-200 text-center text-[10px]">
-                          <div><span className="text-slate-400 block">Sem</span><strong className="text-slate-700">{challenge.first_score_breakdown.semantic_score}/32</strong></div>
-                          <div><span className="text-slate-400 block">Comp</span><strong className="text-slate-700">{challenge.first_score_breakdown.composition_score}/20</strong></div>
-                          <div><span className="text-slate-400 block">Obj</span><strong className="text-slate-700">{challenge.first_score_breakdown.objects_score}/16</strong></div>
-                          <div><span className="text-slate-400 block">Col</span><strong className="text-slate-700">{challenge.first_score_breakdown.color_score}/8</strong></div>
-                          <div><span className="text-slate-400 block">Det</span><strong className="text-slate-700">{challenge.first_score_breakdown.details_score}/4</strong></div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {!firstScoreDone && (
-                    <div className="flex items-center gap-2 rounded-xl bg-amber-50 p-3 text-xs text-amber-800">
-                      <AlertCircle className="h-4 w-4 shrink-0" />
-                      Image uploaded. Processing evaluation...
-                    </div>
-                  )}
-                </div>
-              ) : (
-                !uploadingFirst && (
-                  <div>
-                    <label
-                      className={`flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed px-4 py-6 text-center transition ${
-                        !p1Submitted || phase === 'locked'
-                          ? 'border-slate-200 bg-slate-50 text-slate-400'
-                          : 'cursor-pointer border-brand-300 bg-brand-50/40 text-brand-700 hover:border-brand-500 hover:bg-brand-50'
-                      }`}
-                    >
-                      <Upload className="h-6 w-6 text-brand-500" />
-                      <div>
-                        <p className="font-semibold text-sm">Click to upload First Generated Image</p>
-                        <p className="mt-1 text-xs text-slate-500">Triggers Stage 1 ML Evaluation & Unlocks Step 2</p>
-                      </div>
-                      {phase === 'playing' && p1Submitted && (
-                        <input
-                          type="file"
-                          accept="image/png,image/jpeg,image/jpg,image/webp"
-                          disabled={uploadingFirst}
-                          className="hidden"
-                          onChange={(e) => {
-                            const f = e.target.files?.[0];
-                            if (f) void handleFirstFileUpload(f);
-                          }}
-                        />
-                      )}
-                    </label>
-                  </div>
-                )
-              )}
             </CardBody>
           </Card>
 
-          {/* STEP 2: Follow-up Prompt */}
+          {/* STAGE 1: FIRST ATTEMPT */}
+          <div className="space-y-6">
+            {/* STEP 1 — FIRST PROMPT */}
+            <Card className={p1Submitted ? 'border-emerald-200 bg-emerald-50/20' : ''}>
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between">
+                  <span className="flex items-center gap-2">
+                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-600 text-xs font-bold text-white">1</span>
+                    STEP 1 — FIRST PROMPT
+                  </span>
+                  {p1Submitted && (
+                    <span className="flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-100 px-2.5 py-1 rounded-full">
+                      <CheckCircle2 className="h-3.5 w-3.5" /> Prompt 1 Submitted & Locked
+                    </span>
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardBody className="space-y-4">
+                <textarea
+                  value={prompt1}
+                  onChange={(e) => setPrompt1(e.target.value)}
+                  disabled={p1Submitted || phase === 'locked'}
+                  readOnly={p1Submitted || phase === 'locked'}
+                  rows={4}
+                  placeholder="Enter your initial prompt describing the target image..."
+                  className="w-full resize-none rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200 disabled:opacity-70 disabled:bg-slate-50"
+                />
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-slate-400">{prompt1.length} / 4000 characters</span>
+                  {!p1Submitted && phase === 'playing' && (
+                    <Button
+                      size="sm"
+                      loading={submittingP1}
+                      disabled={!prompt1.trim() || submittingP1}
+                      onClick={() => void handlePrompt1Submit()}
+                    >
+                      Submit First Prompt
+                    </Button>
+                  )}
+                </div>
+              </CardBody>
+            </Card>
+
+            {/* FIRST GENERATED IMAGE & STAGE 1 ML EVALUATION */}
+            <Card className={!p1Submitted ? 'opacity-60 pointer-events-none' : firstScoreDone ? 'border-emerald-200 bg-emerald-50/20' : ''}>
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between">
+                  <span className="flex items-center gap-2">
+                    <Upload className="h-5 w-5 text-brand-600" />
+                    FIRST GENERATED IMAGE
+                  </span>
+                  {firstScoreDone && (
+                    <span className="flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-100 px-2.5 py-1 rounded-full">
+                      <CheckCircle2 className="h-3.5 w-3.5" /> Stage 1 Evaluated
+                    </span>
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardBody className="space-y-4">
+                <p className="text-xs text-slate-500">
+                  Upload the image generated from Prompt 1 to receive your Practice / Intermediate ML Evaluation.
+                </p>
+
+                {uploadingFirst && (
+                  <div className="flex flex-col items-center justify-center py-6 gap-2 rounded-xl bg-brand-50/50 border border-brand-100">
+                    <Loader2 className="h-8 w-8 animate-spin text-brand-600" />
+                    <p className="text-xs font-semibold text-brand-800">Evaluating image...</p>
+                    <p className="text-[11px] text-slate-500">Calculating semantic, composition, objects, color, and detail scores.</p>
+                  </div>
+                )}
+
+                {!uploadingFirst && challenge?.first_image_url ? (
+                  <div className="space-y-3">
+                    <div className="relative aspect-square w-full overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+                      <img
+                        src={resolveMediaUrl(challenge.first_image_url) || undefined}
+                        alt="First attempt generated image"
+                        className="h-full w-full object-cover"
+                      />
+                      <div className="absolute top-2 right-2 rounded-full bg-brand-600 px-2.5 py-1 text-xs font-bold text-white shadow">
+                        First Image
+                      </div>
+                    </div>
+
+                    {firstScoreDone && (
+                      <div className="rounded-xl border border-brand-200 bg-brand-50 p-4 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-[11px] font-bold uppercase tracking-wider text-brand-700">Practice / Intermediate Score</p>
+                            <p className="text-xs text-slate-500">Intermediate score — not on leaderboard</p>
+                          </div>
+                          <div className="text-2xl font-black text-brand-900">
+                            {challenge.first_score} <span className="text-xs text-brand-600 font-bold">/ 80</span>
+                          </div>
+                        </div>
+                        {challenge.first_score_breakdown && (
+                          <div className="grid grid-cols-5 gap-1 pt-2 border-t border-brand-200 text-center text-[10px]">
+                            <div><span className="text-slate-400 block">Sem</span><strong className="text-slate-700">{challenge.first_score_breakdown.semantic_score}/32</strong></div>
+                            <div><span className="text-slate-400 block">Comp</span><strong className="text-slate-700">{challenge.first_score_breakdown.composition_score}/20</strong></div>
+                            <div><span className="text-slate-400 block">Obj</span><strong className="text-slate-700">{challenge.first_score_breakdown.objects_score}/16</strong></div>
+                            <div><span className="text-slate-400 block">Col</span><strong className="text-slate-700">{challenge.first_score_breakdown.color_score}/8</strong></div>
+                            <div><span className="text-slate-400 block">Det</span><strong className="text-slate-700">{challenge.first_score_breakdown.details_score}/4</strong></div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  !uploadingFirst && (
+                    <div>
+                      <label
+                        className={`flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed px-4 py-6 text-center transition ${
+                          !p1Submitted || phase === 'locked'
+                            ? 'border-slate-200 bg-slate-50 text-slate-400'
+                            : 'cursor-pointer border-brand-300 bg-brand-50/40 text-brand-700 hover:border-brand-500 hover:bg-brand-50'
+                        }`}
+                      >
+                        <Upload className="h-6 w-6 text-brand-500" />
+                        <div>
+                          <p className="font-semibold text-sm">Click to upload First Generated Image</p>
+                          <p className="mt-1 text-xs text-slate-500">Triggers Stage 1 ML Evaluation & Unlocks Step 2</p>
+                        </div>
+                        {phase === 'playing' && p1Submitted && (
+                          <input
+                            type="file"
+                            accept="image/png,image/jpeg,image/jpg,image/webp"
+                            disabled={uploadingFirst}
+                            className="hidden"
+                            onChange={(e) => {
+                              const f = e.target.files?.[0];
+                              if (f) void handleFirstFileUpload(f);
+                            }}
+                          />
+                        )}
+                      </label>
+                    </div>
+                  )
+                )}
+              </CardBody>
+            </Card>
+          </div>
+        </div>
+
+        {/* STAGE 2: FINAL ATTEMPT (ALWAYS DISTINCT AND SEPARATE) */}
+        <div className="grid gap-6 lg:grid-cols-2 pt-6 border-t border-slate-200">
+          {/* STEP 2 — FOLLOW-UP PROMPT */}
           <Card className={!p2Unlocked ? 'opacity-60 pointer-events-none' : p2Submitted ? 'border-emerald-200 bg-emerald-50/20' : ''}>
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
@@ -618,14 +581,14 @@ export function ChallengePage() {
                 </span>
                 {p2Submitted && (
                   <span className="flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-100 px-2.5 py-1 rounded-full">
-                    <CheckCircle2 className="h-3.5 w-3.5" /> Follow-up Prompt Locked
+                    <CheckCircle2 className="h-3.5 w-3.5" /> Prompt 2 Submitted & Locked
                   </span>
                 )}
               </CardTitle>
             </CardHeader>
             <CardBody className="space-y-4">
               <p className="text-xs text-slate-500">
-                Review your Stage 1 ML feedback, then write your follow-up prompt to refine details and maximize visual similarity.
+                Review your Stage 1 feedback, then write one follow-up prompt to refine details and achieve maximum visual similarity.
               </p>
               <textarea
                 value={prompt2}
@@ -652,23 +615,23 @@ export function ChallengePage() {
             </CardBody>
           </Card>
 
-          {/* STEP 2 EVALUATION & FINAL SUBMISSION */}
+          {/* FINAL GENERATED IMAGE & STAGE 2 ML EVALUATION */}
           <Card className={!p2Submitted ? 'opacity-60 pointer-events-none' : ''}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Upload className="h-5 w-5 text-brand-600" />
-                STAGE 2 — FINAL IMAGE & LEADERBOARD SCORE
+                FINAL GENERATED IMAGE
               </CardTitle>
             </CardHeader>
             <CardBody className="space-y-4">
               <p className="text-xs text-slate-500">
-                Upload the final image generated from Prompt 2. This image gets evaluated for your OFFICIAL Leaderboard Score!
+                Upload the NEW image generated from Prompt 2. This image gets evaluated for your Official Leaderboard Score.
               </p>
 
               {uploadingFinal && (
                 <div className="flex flex-col items-center justify-center py-6 gap-2 rounded-xl bg-indigo-50/50 border border-indigo-100">
                   <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
-                  <p className="text-xs font-semibold text-indigo-900">Evaluating Final Image with CLIP ML Model...</p>
+                  <p className="text-xs font-semibold text-indigo-900">Evaluating image...</p>
                   <p className="text-[11px] text-slate-500">Calculating official competition score out of 80 points.</p>
                 </div>
               )}
@@ -682,15 +645,15 @@ export function ChallengePage() {
                       className="h-full w-full object-cover"
                     />
                     <div className="absolute top-2 right-2 rounded-full bg-emerald-600 px-2.5 py-1 text-xs font-bold text-white shadow">
-                      Final Image Uploaded
+                      Final Image
                     </div>
                   </div>
 
-                  {challenge?.final_score !== undefined && challenge?.final_score !== null && (
+                  {finalScoreDone && (
                     <div className="rounded-xl border border-emerald-300 bg-emerald-50 p-4 space-y-2">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-800">Final Leaderboard Score (Official)</p>
+                          <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-800">Official Leaderboard Score</p>
                           <p className="text-xs text-emerald-600 font-medium">Used for leaderboard ranking</p>
                         </div>
                         <div className="text-2xl font-black text-emerald-900">
@@ -707,22 +670,6 @@ export function ChallengePage() {
                         </div>
                       )}
                     </div>
-                  )}
-
-                  {phase === 'playing' && (
-                    <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">
-                      <RefreshCw className="h-3.5 w-3.5 text-slate-500" />
-                      Replace final image & re-evaluate
-                      <input
-                        type="file"
-                        accept="image/png,image/jpeg,image/jpg,image/webp"
-                        className="hidden"
-                        onChange={(e) => {
-                          const f = e.target.files?.[0];
-                          if (f) void handleFinalFileUpload(f);
-                        }}
-                      />
-                    </label>
                   )}
                 </div>
               ) : (
