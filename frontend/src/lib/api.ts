@@ -196,6 +196,8 @@ export const adminApi = {
     api.get(`/admin/rounds/${roundId}/target-images`).then(unwrap<TargetImage[]>),
   submissions: (roundId: string) =>
     api.get(`/admin/rounds/${roundId}/submissions`).then(unwrap<AdminSubmission[]>),
+  deleteSubmission: (submissionId: string) =>
+    api.delete(`/admin/submissions/${submissionId}`).then(unwrap<{ id: string }>),
   archiveCompetition: (id: string) =>
     api.post(`/admin/competitions/${id}/archive`).then(unwrap<Competition>),
   restoreCompetition: (id: string) =>

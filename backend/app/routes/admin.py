@@ -343,3 +343,27 @@ def round_action(round_id: str, action: str, _: AdminUser):
 
     updated = FirestoreCRUD.update_round(round_id, {"status": status_map[action]})
     return ApiResponse(data=updated, message=f"Round {action}d successfully.")
+
+
+@router.delete("/submissions/{submission_id}", response_model=ApiResponse[dict])
+def delete_submission(submission_id: str, _: AdminUser):
+    sub = FirestoreCRUD.get_submission(submission_id)
+    if not sub:
+        abort("Submission not found.", 404)
+
+    # 1. Clean up associated media files (uploaded image, chat screenshot, etc.)
+    storage = get_storage_provider()
+    if sub.get("image_url"):
+        storage.delete(sub["image_url"])
+    if sub.get("chat_screenshot_url"):
+        storage.delete(sub["chat_screenshot_url"])
+    if sub.get("chat_screenshot_path"):
+        storage.delete(sub["chat_screenshot_path"])
+
+    # 2. Delete associated score document
+    FirestoreCRUD.delete_score_by_submission(submission_id)
+
+    # 3. Delete submission document
+    FirestoreCRUD.delete_submission(submission_id)
+
+    return ApiResponse(data={"id": submission_id}, message="Submission deleted successfully.")

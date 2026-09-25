@@ -15,6 +15,7 @@ import {
   RefreshCw,
   ShieldCheck,
   Trophy,
+  Trash2,
   Upload,
   Users,
 } from 'lucide-react';
@@ -115,9 +116,12 @@ export function AdminDashboardPage() {
   const [submissions, setSubmissions] = useState<AdminSubmission[]>([]);
   const [submissionsLoading, setSubmissionsLoading] = useState(false);
 
-  // Confirm Archive modals
+  // Confirm Archive & Delete modals
   const [archiveCompTarget, setArchiveCompTarget] = useState<Competition | null>(null);
   const [archiveRoundTarget, setArchiveRoundTarget] = useState<Round | null>(null);
+  const [deleteSubTarget, setDeleteSubTarget] = useState<AdminSubmission | null>(null);
+  const [clearSubsRoundTarget, setClearSubsRoundTarget] = useState<Round | null>(null);
+  const [subSuccessMsg, setSubSuccessMsg] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -231,12 +235,49 @@ export function AdminDashboardPage() {
   const openSubmissions = async (round: Round) => {
     setSubmissionsFor(round);
     setSubmissionsLoading(true);
+    setSubSuccessMsg(null);
     try {
       setSubmissions(await adminApi.submissions(round.id));
     } catch (e) {
       setError(getApiErrorMessage(e));
     } finally {
       setSubmissionsLoading(false);
+    }
+  };
+
+  const handleDeleteSubmission = async (sub: AdminSubmission) => {
+    const key = `delete:${sub.id}`;
+    setBusyAction(key);
+    setError(null);
+    try {
+      await adminApi.deleteSubmission(sub.id);
+      setSubmissions((prev) => prev.filter((s) => s.id !== sub.id));
+      setDeleteSubTarget(null);
+      setSubSuccessMsg('Submission deleted successfully.');
+      await refresh();
+    } catch (e) {
+      setError(getApiErrorMessage(e));
+    } finally {
+      setBusyAction(null);
+    }
+  };
+
+  const handleClearSubmissions = async (round: Round) => {
+    const key = `clear:${round.id}`;
+    setBusyAction(key);
+    setError(null);
+    try {
+      for (const s of submissions) {
+        await adminApi.deleteSubmission(s.id);
+      }
+      setSubmissions([]);
+      setClearSubsRoundTarget(null);
+      setSubSuccessMsg('All submissions cleared for this round.');
+      await refresh();
+    } catch (e) {
+      setError(getApiErrorMessage(e));
+    } finally {
+      setBusyAction(null);
     }
   };
 
@@ -629,12 +670,37 @@ export function AdminDashboardPage() {
       {/* Submissions modal */}
       <Modal
         open={submissionsFor !== null}
-        onClose={() => setSubmissionsFor(null)}
+        onClose={() => {
+          setSubmissionsFor(null);
+          setSubSuccessMsg(null);
+        }}
         title={submissionsFor ? `Submissions — Round ${submissionsFor.round_number}` : ''}
         description={submissionsFor?.title}
         size="lg"
       >
+        {subSuccessMsg && (
+          <div className="mb-4 flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm text-emerald-800 font-medium">
+            <span>{subSuccessMsg}</span>
+            <button onClick={() => setSubSuccessMsg(null)} className="text-emerald-600 hover:text-emerald-900 font-bold ml-2">✕</button>
+          </div>
+        )}
+
         {submissionsLoading && <Loading label="Loading submissions..." />}
+
+        {!submissionsLoading && submissions.length > 0 && (
+          <div className="mb-4 flex justify-end">
+            <Button
+              size="sm"
+              variant="danger"
+              className="bg-rose-50 border-rose-200 text-rose-600 hover:bg-rose-100 hover:text-rose-700"
+              onClick={() => submissionsFor && setClearSubsRoundTarget(submissionsFor)}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Clear All Submissions ({submissions.length})
+            </Button>
+          </div>
+        )}
+
         {!submissionsLoading && submissions.length === 0 && (
           <div className="rounded-xl border border-dashed border-slate-200 py-10 text-center text-sm text-slate-400">
             No submissions yet for this round.
@@ -643,7 +709,7 @@ export function AdminDashboardPage() {
         {!submissionsLoading && submissions.length > 0 && (
           <div className="space-y-4">
             {submissions.map((sub) => (
-              <div key={sub.id} className="rounded-xl border border-slate-200 p-4 space-y-3 bg-white">
+              <div key={sub.id} className="rounded-xl border border-slate-200 p-4 space-y-3 bg-white shadow-sm">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
                     <span className="font-bold text-slate-900">{sub.full_name || sub.username}</span>
@@ -658,6 +724,15 @@ export function AdminDashboardPage() {
                         Score: {sub.total_score} / 80
                       </span>
                     )}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700 text-xs px-2 py-1 h-7"
+                      onClick={() => setDeleteSubTarget(sub)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      Delete
+                    </Button>
                   </div>
                 </div>
 
@@ -706,6 +781,65 @@ export function AdminDashboardPage() {
           </div>
         )}
       </Modal>
+
+      {/* Delete Single Submission Modal */}
+      <Modal
+        open={deleteSubTarget !== null}
+        onClose={() => setDeleteSubTarget(null)}
+        title="Delete Submission?"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setDeleteSubTarget(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              loading={busyAction === `delete:${deleteSubTarget?.id}`}
+              onClick={() => deleteSubTarget && void handleDeleteSubmission(deleteSubTarget)}
+            >
+              <Trash2 className="h-4 w-4" />
+              Delete
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-slate-600 font-medium">
+          Are you sure you want to delete this submission by <strong className="text-slate-900">@{deleteSubTarget?.username}</strong>?
+        </p>
+        <p className="mt-2 text-sm text-slate-500">
+          This action cannot be undone. The submission document, its score record, and its uploaded generated image file will be permanently removed.
+        </p>
+      </Modal>
+
+      {/* Clear All Submissions Modal */}
+      <Modal
+        open={clearSubsRoundTarget !== null}
+        onClose={() => setClearSubsRoundTarget(null)}
+        title="Clear All Submissions in this Round?"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setClearSubsRoundTarget(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              loading={busyAction === `clear:${clearSubsRoundTarget?.id}`}
+              onClick={() => clearSubsRoundTarget && void handleClearSubmissions(clearSubsRoundTarget)}
+            >
+              <Trash2 className="h-4 w-4" />
+              Clear All Submissions
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-slate-600 font-medium">
+          Are you sure you want to clear all {submissions.length} submission(s) for <strong className="text-slate-900">Round {clearSubsRoundTarget?.round_number}: {clearSubsRoundTarget?.title}</strong>?
+        </p>
+        <p className="mt-2 text-sm text-slate-500">
+          This action cannot be undone. All participant submission documents, score records, and uploaded image files for this round will be deleted. User accounts, rounds, target images, and competitions will remain untouched.
+        </p>
+      </Modal>
+
 
       {/* Archive Competition Modal */}
       <Modal

@@ -365,4 +365,35 @@ class FirestoreCRUD:
             return [dict(d.to_dict(), id=d.id) for d in docs]
         return list(_memory_db["scores"].values())
 
+    @classmethod
+    def delete_submission(cls, sub_id: str) -> bool:
+        db = get_firestore_db()
+        if db:
+            doc_ref = db.collection("submissions").document(sub_id)
+            if not doc_ref.get().exists:
+                return False
+            doc_ref.delete()
+        if sub_id in _memory_db["submissions"]:
+            del _memory_db["submissions"][sub_id]
+        return True
+
+    @classmethod
+    def delete_score(cls, score_id: str) -> bool:
+        db = get_firestore_db()
+        if db:
+            doc_ref = db.collection("scores").document(score_id)
+            if not doc_ref.get().exists:
+                return False
+            doc_ref.delete()
+        if score_id in _memory_db["scores"]:
+            del _memory_db["scores"][score_id]
+        return True
+
+    @classmethod
+    def delete_score_by_submission(cls, submission_id: str) -> None:
+        sc = cls.get_score_by_submission(submission_id)
+        if sc and sc.get("id"):
+            cls.delete_score(sc["id"])
+
+
 

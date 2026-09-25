@@ -79,3 +79,38 @@ def test_invalid_file_upload_rejected(
         headers=upload_headers,
     )
     assert res.status_code == 400
+
+
+def test_admin_delete_submission_full_flow(
+    client, participant_headers, admin_headers, active_round_with_target
+):
+    flow_headers = {"Authorization": "Bearer participant-token-delete-test"}
+    rnd = active_round_with_target
+
+    # 1. Participant starts challenge and uploads image
+    start_res = client.post(f"/api/rounds/{rnd['id']}/start", headers=flow_headers)
+    sub_id = start_res.json()["data"]["id"]
+
+    png_bytes = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15c4\x00\x00\x00\rIDATx\x9cc` \x05\x00\x00\x02\x00\x01H\xafA4\x00\x00\x00\x00IEND\xaeB`\x82"
+    client.put(f"/api/submissions/{sub_id}/prompt", json={"prompt": "test prompt"}, headers=flow_headers)
+    client.post(f"/api/submissions/{sub_id}/upload-image", files={"file": ("test.png", io.BytesIO(png_bytes), "image/png")}, headers=flow_headers)
+    client.post(f"/api/submissions/{sub_id}/submit", headers=flow_headers)
+
+    # 2. Participant attempts to delete submission -> 403 Forbidden
+    part_del_res = client.delete(f"/api/admin/submissions/{sub_id}", headers=participant_headers)
+    assert part_del_res.status_code == 403
+
+    # 3. Admin deletes submission -> 200 OK
+    admin_del_res = client.delete(f"/api/admin/submissions/{sub_id}", headers=admin_headers)
+    assert admin_del_res.status_code == 200
+    assert admin_del_res.json()["data"]["id"] == sub_id
+
+    # 4. Deleting non-existing submission -> 404 Not Found
+    del_404_res = client.delete(f"/api/admin/submissions/{sub_id}", headers=admin_headers)
+    assert del_404_res.status_code == 404
+
+    # 5. Verify round, competition, and target image remain intact
+    round_res = client.get(f"/api/admin/competitions/{rnd['competition_id']}/rounds", headers=admin_headers)
+    assert round_res.status_code == 200
+    assert len(round_res.json()["data"]) == 1
+
