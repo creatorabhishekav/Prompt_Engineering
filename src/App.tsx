@@ -26,6 +26,7 @@ export function App() {
               <Route path="/instructions" element={<InstructionsPage />} />
               <Route path="/challenge" element={<ChallengePage />} />
               <Route path="/result" element={<ResultPage />} />
+              <Route path="/results" element={<Navigate to="/result" replace />} />
               <Route path="/leaderboard" element={<LeaderboardPage />} />
             </Route>
 
