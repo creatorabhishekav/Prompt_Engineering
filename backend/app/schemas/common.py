@@ -1,22 +1,13 @@
-from typing import Generic, TypeVar
-
+from typing import Generic, Optional, TypeVar
 from pydantic import BaseModel
 
 T = TypeVar("T")
 
-
 class ApiResponse(BaseModel, Generic[T]):
-    """Consistent success envelope for API responses."""
-
     status: str = "success"
-    data: T | None = None
-    message: str | None = None
+    data: T
+    message: str = "OK"
 
-
-class MessageResponse(BaseModel):
-    status: str = "success"
-    message: str
-
-    @classmethod
-    def ok(cls, message: str) -> "MessageResponse":
-        return cls(message=message)
+class ErrorResponse(BaseModel):
+    status: str = "error"
+    detail: str

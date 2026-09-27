@@ -1,17 +1,19 @@
 from datetime import datetime
-
+from typing import Optional
 from pydantic import BaseModel, ConfigDict
 
-from app.schemas.domain_enums import SubmissionStatus
+class TargetImageBase(BaseModel):
+    round_id: str
+    image_url: str
+    alt_text: Optional[str] = None
 
+class TargetImageCreate(TargetImageBase):
+    pass
 
-class TargetImageRead(BaseModel):
+class TargetImageRead(TargetImageBase):
     model_config = ConfigDict(from_attributes=True)
 
     id: str
-    round_id: str
-    image_url: str
-    alt_text: str | None = None
-    created_by: str | None = None
-    created_at: datetime
-    updated_at: datetime
+    created_by: Optional[str] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None

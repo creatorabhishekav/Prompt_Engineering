@@ -1,36 +1,22 @@
 from datetime import datetime
+from typing import Optional, Dict, Any
+from pydantic import BaseModel, ConfigDict
+from app.models.domain_enums import SubmissionStatus
 
-from pydantic import BaseModel, ConfigDict, Field
-
-from app.schemas.domain_enums import SubmissionStatus
-
-
-class SubmissionRead(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: str
-    user_id: str
-    round_id: str
-    target_image_id: str | None = None
-    image_url: str | None = None
-    prompt_used: str
-    prompt_1: str = ""
-    prompt_2: str = ""
-    status: SubmissionStatus
-    started_at_elapsed: int | None = None
-    deadline_elapsed: int | None = None
-    submitted_at: datetime | None = None
-    created_at: datetime
-    updated_at: datetime
-
+class ScoreBreakdown(BaseModel):
+    semantic_score: float = 0.0      # max 32
+    composition_score: float = 0.0   # max 20
+    objects_score: float = 0.0       # max 16
+    color_score: float = 0.0         # max 8
+    details_score: float = 0.0       # max 4
+    total_score: float = 0.0         # max 80
+    clip_similarity: Optional[float] = None
+    evaluation_method: Optional[str] = "CLIP + computer vision"
 
 class SubmissionUpdate(BaseModel):
-    prompt: str = Field(default="", max_length=4000)
-
-
-class PromptSubmissionRequest(BaseModel):
-    prompt: str = Field(..., min_length=1, max_length=4000)
-
+    prompt: Optional[str] = None
+    prompt_1: Optional[str] = None
+    prompt_2: Optional[str] = None
 
 class AdminSubmissionRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -38,47 +24,30 @@ class AdminSubmissionRead(BaseModel):
     id: str
     user_id: str
     username: str
-    full_name: str | None = None
+    full_name: Optional[str] = None
     round_id: str
     round_title: str
-    prompt_used: str
-    prompt_1: str = ""
-    prompt_2: str = ""
-    image_url: str | None = None
-    first_image_url: str | None = None
-    final_image_url: str | None = None
+    prompt_used: str = ""
+    prompt_1: Optional[str] = None
+    prompt_2: Optional[str] = None
+    image_url: Optional[str] = None
+    first_image_url: Optional[str] = None
+    final_image_url: Optional[str] = None
     status: SubmissionStatus
-    started_at_elapsed: int | None = None
-    deadline_elapsed: int | None = None
-    submitted_at: datetime | None = None
-    created_at: datetime
-    # Score fields if evaluated
-    scoring_status: str | None = None
-    semantic_score: float | None = None
-    composition_score: float | None = None
-    objects_score: float | None = None
-    color_score: float | None = None
-    details_score: float | None = None
-    total_score: float | None = None
-    first_scoring_status: str | None = None
-    first_score: float | None = None
-    first_score_breakdown: dict | None = None
-
-
-class ScoreRead(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: str
-    submission_id: str
-    round_id: str
-    user_id: str
-    semantic_score: float
-    composition_score: float
-    objects_score: float
-    color_score: float
-    details_score: float
-    total_score: float
-    status: str
-    feedback: str | None = None
-    created_at: datetime
-
+    started_at_elapsed: Optional[int] = None
+    deadline_elapsed: Optional[int] = None
+    submitted_at: Optional[datetime] = None
+    created_at: Optional[datetime] = None
+    scoring_status: Optional[str] = "scored"
+    semantic_score: Optional[float] = None
+    composition_score: Optional[float] = None
+    objects_score: Optional[float] = None
+    color_score: Optional[float] = None
+    details_score: Optional[float] = None
+    total_score: Optional[float] = None
+    clip_similarity: Optional[float] = None
+    evaluation_method: Optional[str] = None
+    first_score_breakdown: Optional[ScoreBreakdown] = None
+    final_score_breakdown: Optional[ScoreBreakdown] = None
+    first_score: Optional[float] = None
+    final_score: Optional[float] = None

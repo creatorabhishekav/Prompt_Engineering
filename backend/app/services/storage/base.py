@@ -1,20 +1,7 @@
 from abc import ABC, abstractmethod
-
+from typing import BinaryIO
 
 class StorageProvider(ABC):
-    """Abstraction over where target images are persisted.
-
-    Storage layers must not depend on FastAPI; they return a URL path that
-    the app serves (e.g. "/media/rounds/<round_id>/<file>.png").
-    """
-
-    name: str = "base"
-
     @abstractmethod
-    def save(self, *, data: bytes, folder: str, filename: str, max_bytes: int | None = None) -> str:
-        """Persist ``data`` under ``folder`` and return the public URL path."""
-        raise NotImplementedError
-
-    def delete(self, path: str) -> None:
-        """Best-effort removal of the resource identified by ``path``."""
-        return None
+    def save_file(self, file_obj: BinaryIO, filename: str, subfolder: str = "") -> str:
+        pass

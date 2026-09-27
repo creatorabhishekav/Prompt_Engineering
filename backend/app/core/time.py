@@ -1,11 +1,7 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
+def utc_now() -> datetime:
+    return datetime.now(timezone.utc)
 
-def utcnow() -> datetime:
-    """Return the current time as naive UTC.
-
-    SQLite stores datetimes without timezone info, so the rest of the app
-    deliberately works with naive-UTC timestamps to avoid aware/naive
-    comparison errors. Use this helper everywhere we stamp wall-clock time.
-    """
-    return datetime.utcnow()
+def iso_now() -> str:
+    return utc_now().isoformat()

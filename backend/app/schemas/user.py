@@ -1,19 +1,22 @@
 from datetime import datetime
-
+from typing import Optional
 from pydantic import BaseModel, ConfigDict
+from app.models.domain_enums import UserRole
 
-from app.schemas.domain_enums import UserRole
+class UserBase(BaseModel):
+    email: str
+    username: str
+    full_name: Optional[str] = None
+    role: UserRole = UserRole.PARTICIPANT
 
+class UserCreate(UserBase):
+    pass
 
-class UserRead(BaseModel):
+class UserRead(UserBase):
     model_config = ConfigDict(from_attributes=True)
 
     id: str
-    email: str
-    username: str
-    full_name: str | None = None
-    avatar_url: str | None = None
-    role: UserRole
-    is_active: bool
-    created_at: datetime
-    updated_at: datetime
+    avatar_url: Optional[str] = None
+    is_active: bool = True
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None

@@ -1,6 +1,5 @@
-import os
-import json
 import logging
+import os
 import firebase_admin
 from firebase_admin import credentials, firestore
 from app.core.config import get_settings
@@ -8,45 +7,28 @@ from app.core.config import get_settings
 logger = logging.getLogger("app.db.firestore")
 settings = get_settings()
 
-_firestore_db = None
+_db = None
 
 def get_firestore_db():
-    global _firestore_db
-    if _firestore_db is not None:
-        return _firestore_db
-
-
-    if not firebase_admin._apps:
-        cred = None
-        if settings.FIREBASE_CREDENTIALS_JSON:
-            try:
-                cred_dict = json.loads(settings.FIREBASE_CREDENTIALS_JSON)
-                cred = credentials.Certificate(cred_dict)
-            except Exception as e:
-                logger.error(f"Failed to parse FIREBASE_CREDENTIALS_JSON: {e}")
-        elif settings.FIREBASE_CREDENTIALS_PATH and os.path.exists(settings.FIREBASE_CREDENTIALS_PATH):
-            try:
-                cred = credentials.Certificate(settings.FIREBASE_CREDENTIALS_PATH)
-            except Exception as e:
-                logger.error(f"Failed to load FIREBASE_CREDENTIALS_PATH: {e}")
-        
-        options = {}
-        if settings.FIREBASE_PROJECT_ID:
-            options["projectId"] = settings.FIREBASE_PROJECT_ID
-
-        if cred:
-            firebase_admin.initialize_app(cred, options)
-        else:
-            try:
-                firebase_admin.initialize_app(options=options)
-            except Exception as e:
-                logger.warning(f"Default Firebase initialization fallback failed: {e}")
-                return None
+    global _db
+    if _db is not None:
+        return _db
 
     try:
-        _firestore_db = firestore.client()
-    except Exception as e:
-        logger.warning(f"Could not connect to live Firestore: {e}")
-        _firestore_db = None
+        if not firebase_admin._apps:
+            cred_path = settings.FIREBASE_CREDENTIALS_PATH or os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+            if cred_path and os.path.exists(cred_path):
+                cred = credentials.Certificate(cred_path)
+                firebase_admin.initialize_app(cred, {"projectId": settings.FIREBASE_PROJECT_ID})
+                logger.info(f"Firebase Admin initialized with certificate for project {settings.FIREBASE_PROJECT_ID}")
+            else:
+                firebase_admin.initialize_app(options={"projectId": settings.FIREBASE_PROJECT_ID})
+                logger.info(f"Firebase Admin initialized with project ID: {settings.FIREBASE_PROJECT_ID}")
 
-    return _firestore_db
+        _db = firestore.client()
+        logger.info("Firestore client connected successfully.")
+    except Exception as e:
+        logger.warning(f"Firestore initialization warning: {e}. In-memory fallback will handle database operations.")
+        _db = None
+
+    return _db

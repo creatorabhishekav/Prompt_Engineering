@@ -1,0 +1,6 @@
+{
+  "name": "Reverse Prompt Engineering Challenge",
+  "description": "Craft prompts, generate images, upload submissions, and compete on the leaderboard.",
+  "permissions": [],
+  "capabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
