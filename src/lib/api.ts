@@ -164,12 +164,9 @@ export const challengeApi = {
       })
       .then(unwrap<ChallengeStatus>);
   },
-  uploadFinalImage: (submissionId: string, file: File, gemini_chat_link?: string) => {
+  uploadFinalImage: (submissionId: string, file: File) => {
     const formData = new FormData();
     formData.append('file', file);
-    if (gemini_chat_link) {
-      formData.append('gemini_chat_link', gemini_chat_link);
-    }
     return api
       .post<Envelope<ChallengeStatus>>(`/submissions/${submissionId}/upload-final-image`, formData, {
         headers: { 'Content-Type': undefined },

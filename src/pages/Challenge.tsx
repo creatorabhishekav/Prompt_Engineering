@@ -61,16 +61,6 @@ export function ChallengePage() {
   const [uploadingFinal, setUploadingFinal] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  const saveGeminiLink = async (linkToSave: string) => {
-    if (!challenge) return;
-    const trimmed = linkToSave.trim();
-    try {
-      await challengeApi.saveGeminiChatLink(challenge.id, trimmed);
-    } catch {
-      // Background save error ignored
-    }
-  };
-
   const handlePasteClipboard = async () => {
     try {
       if (navigator?.clipboard?.readText) {
@@ -81,7 +71,6 @@ export function ChallengePage() {
           setGeminiChatLink(trimmed);
           setPasteFeedback('Pasted link from clipboard');
           setTimeout(() => setPasteFeedback(null), 3000);
-          void saveGeminiLink(trimmed);
           return;
         }
       }
@@ -273,7 +262,7 @@ export function ChallengePage() {
     setUploadingFinal(true);
     setError(null);
     try {
-      const data = await challengeApi.uploadFinalImage(challenge.id, file, geminiChatLink.trim());
+      const data = await challengeApi.uploadFinalImage(challenge.id, file);
       applyChallenge(data);
     } catch (e) {
       setError(getApiErrorMessage(e));
@@ -724,20 +713,6 @@ export function ChallengePage() {
                     </div>
                   )
                 )}
-
-                {/* Google Gemini Chat Link */}
-                <GeminiChatLinkSection
-                  value={geminiChatLink}
-                  onChange={(val) => {
-                    geminiLinkTouchedRef.current = true;
-                    setGeminiChatLink(val);
-                  }}
-                  onBlur={() => void saveGeminiLink(geminiChatLink)}
-                  onPaste={handlePasteClipboard}
-                  pasteFeedback={pasteFeedback}
-                  disabled={phase === 'locked'}
-                  readOnly={phase === 'locked'}
-                />
               </CardBody>
             </Card>
           </div>
@@ -920,7 +895,6 @@ export function ChallengePage() {
                   geminiLinkTouchedRef.current = true;
                   setGeminiChatLink(val);
                 }}
-                onBlur={() => void saveGeminiLink(geminiChatLink)}
                 onPaste={handlePasteClipboard}
                 pasteFeedback={pasteFeedback}
                 disabled={phase === 'locked'}
@@ -988,7 +962,6 @@ function ErrorBanner({ message }: { message: string }) {
 function GeminiChatLinkSection({
   value,
   onChange,
-  onBlur,
   onPaste,
   pasteFeedback,
   disabled,
@@ -996,7 +969,6 @@ function GeminiChatLinkSection({
 }: {
   value: string;
   onChange: (val: string) => void;
-  onBlur: () => void;
   onPaste: () => void;
   pasteFeedback: string | null;
   disabled?: boolean;
@@ -1030,7 +1002,7 @@ function GeminiChatLinkSection({
       </div>
 
       <p className="text-xs text-slate-500">
-        Paste the Gemini conversation link used to generate/revise your image.
+        Paste the Gemini conversation link used to generate/revise your final image.
       </p>
 
       <div className="flex flex-col sm:flex-row gap-2">
@@ -1039,7 +1011,6 @@ function GeminiChatLinkSection({
             type="url"
             value={value}
             onChange={(e) => onChange(e.target.value)}
-            onBlur={onBlur}
             disabled={disabled}
             readOnly={readOnly}
             placeholder="Paste your Google Gemini chat link here"

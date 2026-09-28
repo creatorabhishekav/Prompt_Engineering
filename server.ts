@@ -1168,17 +1168,6 @@ export async function createExpressApp() {
     sub.scoring_status = 'scored';
     sub.submitted_at = new Date().toISOString();
 
-    // If participant updated their Gemini chat link along with final image upload, persist it
-    if (req.body?.gemini_chat_link !== undefined) {
-      const rawLink = typeof req.body.gemini_chat_link === 'string' ? req.body.gemini_chat_link.trim() : '';
-      if (rawLink) {
-        const val = validateHttpsUrl(rawLink);
-        if (val.valid) {
-          sub.gemini_chat_link = val.cleanedUrl!;
-        }
-      }
-    }
-
     try {
       // Evaluate final stage with CLIP ViT-B/32 + multi-factor computer vision
       const breakdown = await evaluateSubmissionImages(
@@ -1773,6 +1762,7 @@ export async function createExpressApp() {
     const list = roundSubs.map((s) => {
       const u = users.get(s.user_id);
       const b = s.final_stage_breakdown || s.first_stage_breakdown;
+      const isFinal = s.status === 'completed' || s.status === 'evaluated' || Boolean(s.final_stage_breakdown);
       return {
         id: s.id,
         user_id: s.user_id,
@@ -1786,7 +1776,7 @@ export async function createExpressApp() {
         image_url: s.final_image_url || s.image_url,
         first_image_url: s.first_image_url,
         final_image_url: s.final_image_url,
-        gemini_chat_link: s.gemini_chat_link || null,
+        gemini_chat_link: isFinal ? (s.gemini_chat_link || null) : null,
         status: s.status,
         started_at_elapsed: null,
         deadline_elapsed: null,

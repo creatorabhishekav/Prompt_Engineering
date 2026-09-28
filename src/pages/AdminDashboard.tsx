@@ -773,44 +773,46 @@ export function AdminDashboardPage() {
                   </div>
                 </div>
 
-                {/* Google Gemini Chat Link */}
-                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-1">
-                  <div className="flex items-center justify-between">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-                      <Link2 className="h-3.5 w-3.5 text-brand-600" />
-                      Google Gemini Chat Link
-                    </p>
-                    {sub.gemini_chat_link && (
-                      <span className="text-[10px] text-emerald-700 font-semibold bg-emerald-100/70 px-2 py-0.5 rounded-full">
-                        Provided
-                      </span>
+                {/* Google Gemini Chat Link (Displayed only for final submission records) */}
+                {(sub.status === 'submitted' || sub.status === 'scored' || Boolean(sub.final_image_url) || (sub.final_score !== null && sub.final_score !== undefined)) && (
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                        <Link2 className="h-3.5 w-3.5 text-brand-600" />
+                        Google Gemini Chat Link
+                      </p>
+                      {sub.gemini_chat_link && (
+                        <span className="text-[10px] text-emerald-700 font-semibold bg-emerald-100/70 px-2 py-0.5 rounded-full">
+                          Provided
+                        </span>
+                      )}
+                    </div>
+                    {sub.gemini_chat_link ? (
+                      <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                        <a
+                          href={sub.gemini_chat_link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs font-medium text-brand-700 hover:text-brand-900 hover:underline break-all inline-flex items-center gap-1.5"
+                        >
+                          <span className="truncate max-w-[280px] sm:max-w-[420px]">{sub.gemini_chat_link}</span>
+                          <ExternalLink className="h-3 w-3 shrink-0" />
+                        </a>
+                        <a
+                          href={sub.gemini_chat_link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-xs font-semibold bg-white border border-brand-200 text-brand-700 px-2.5 py-1 rounded-md shadow-sm hover:bg-brand-50 transition"
+                        >
+                          <span>Open Gemini Chat</span>
+                          <ExternalLink className="h-3 w-3" />
+                        </a>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-slate-400 italic">No Google Gemini chat link submitted</p>
                     )}
                   </div>
-                  {sub.gemini_chat_link ? (
-                    <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
-                      <a
-                        href={sub.gemini_chat_link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs font-medium text-brand-700 hover:text-brand-900 hover:underline break-all inline-flex items-center gap-1.5"
-                      >
-                        <span className="truncate max-w-[280px] sm:max-w-[420px]">{sub.gemini_chat_link}</span>
-                        <ExternalLink className="h-3 w-3 shrink-0" />
-                      </a>
-                      <a
-                        href={sub.gemini_chat_link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-xs font-semibold bg-white border border-brand-200 text-brand-700 px-2.5 py-1 rounded-md shadow-sm hover:bg-brand-50 transition"
-                      >
-                        <span>Open Gemini Chat</span>
-                        <ExternalLink className="h-3 w-3" />
-                      </a>
-                    </div>
-                  ) : (
-                    <p className="text-xs text-slate-400 italic">No Google Gemini chat link submitted</p>
-                  )}
-                </div>
+                )}
 
                 {sub.total_score !== undefined && sub.total_score !== null && (
                   <div className="space-y-2">
