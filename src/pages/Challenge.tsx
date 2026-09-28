@@ -1,11 +1,13 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   AlertCircle,
   CheckCircle2,
+  ClipboardCopy,
   ExternalLink,
   Image as ImageIcon,
+  Link2,
   Loader2,
   Lock,
   Play,
@@ -48,12 +50,48 @@ export function ChallengePage() {
 
   const [prompt1, setPrompt1] = useState('');
   const [prompt2, setPrompt2] = useState('');
+  const [geminiChatLink, setGeminiChatLink] = useState('');
+  const geminiLinkTouchedRef = useRef(false);
+  const [pasteFeedback, setPasteFeedback] = useState<string | null>(null);
+
   const [submittingP1, setSubmittingP1] = useState(false);
   const [submittingP2, setSubmittingP2] = useState(false);
 
   const [uploadingFirst, setUploadingFirst] = useState(false);
   const [uploadingFinal, setUploadingFinal] = useState(false);
   const [busy, setBusy] = useState(false);
+
+  const saveGeminiLink = async (linkToSave: string) => {
+    if (!challenge) return;
+    const trimmed = linkToSave.trim();
+    try {
+      await challengeApi.saveGeminiChatLink(challenge.id, trimmed);
+    } catch {
+      // Background save error ignored
+    }
+  };
+
+  const handlePasteClipboard = async () => {
+    try {
+      if (navigator?.clipboard?.readText) {
+        const text = await navigator.clipboard.readText();
+        if (text) {
+          const trimmed = text.trim();
+          geminiLinkTouchedRef.current = true;
+          setGeminiChatLink(trimmed);
+          setPasteFeedback('Pasted link from clipboard');
+          setTimeout(() => setPasteFeedback(null), 3000);
+          void saveGeminiLink(trimmed);
+          return;
+        }
+      }
+      setPasteFeedback('Clipboard empty');
+      setTimeout(() => setPasteFeedback(null), 3000);
+    } catch {
+      setPasteFeedback('Please paste directly with Ctrl+V / Cmd+V');
+      setTimeout(() => setPasteFeedback(null), 3500);
+    }
+  };
 
   const loadRounds = useCallback(async () => {
     setPhase('loading');
@@ -86,6 +124,11 @@ export function ChallengePage() {
 
     if (data.prompt_2 !== undefined && data.prompt_2 !== null) {
       setPrompt2(data.prompt_2);
+    }
+
+    // Synchronize saved Google Gemini Chat Link unless actively edited by user
+    if (!geminiLinkTouchedRef.current && data.gemini_chat_link !== undefined) {
+      setGeminiChatLink(data.gemini_chat_link || '');
     }
 
     const isFinished = next === 'submitted' || next === 'completed' || next === 'scored' || next === 'rejected';
@@ -230,7 +273,7 @@ export function ChallengePage() {
     setUploadingFinal(true);
     setError(null);
     try {
-      const data = await challengeApi.uploadFinalImage(challenge.id, file);
+      const data = await challengeApi.uploadFinalImage(challenge.id, file, geminiChatLink.trim());
       applyChallenge(data);
     } catch (e) {
       setError(getApiErrorMessage(e));
@@ -263,10 +306,27 @@ export function ChallengePage() {
       setError('Please upload your final generated image before submitting.');
       return;
     }
+
+    const cleanedGeminiLink = geminiChatLink.trim();
+    if (!cleanedGeminiLink) {
+      setError('Please paste your Google Gemini chat link before submitting.');
+      return;
+    }
+    try {
+      const parsed = new URL(cleanedGeminiLink);
+      if (parsed.protocol !== 'https:') {
+        setError('Please enter a valid HTTPS URL for your Google Gemini chat link.');
+        return;
+      }
+    } catch {
+      setError('Please enter a valid HTTPS URL for your Google Gemini chat link.');
+      return;
+    }
+
     setBusy(true);
     setError(null);
     try {
-      const data = await challengeApi.submit(challenge.id);
+      const data = await challengeApi.submit(challenge.id, cleanedGeminiLink);
       applyChallenge(data);
     } catch (e) {
       setError(getApiErrorMessage(e));
@@ -664,6 +724,20 @@ export function ChallengePage() {
                     </div>
                   )
                 )}
+
+                {/* Google Gemini Chat Link */}
+                <GeminiChatLinkSection
+                  value={geminiChatLink}
+                  onChange={(val) => {
+                    geminiLinkTouchedRef.current = true;
+                    setGeminiChatLink(val);
+                  }}
+                  onBlur={() => void saveGeminiLink(geminiChatLink)}
+                  onPaste={handlePasteClipboard}
+                  pasteFeedback={pasteFeedback}
+                  disabled={phase === 'locked'}
+                  readOnly={phase === 'locked'}
+                />
               </CardBody>
             </Card>
           </div>
@@ -839,6 +913,20 @@ export function ChallengePage() {
                 )
               )}
 
+              {/* Google Gemini Chat Link */}
+              <GeminiChatLinkSection
+                value={geminiChatLink}
+                onChange={(val) => {
+                  geminiLinkTouchedRef.current = true;
+                  setGeminiChatLink(val);
+                }}
+                onBlur={() => void saveGeminiLink(geminiChatLink)}
+                onPaste={handlePasteClipboard}
+                pasteFeedback={pasteFeedback}
+                disabled={phase === 'locked'}
+                readOnly={phase === 'locked'}
+              />
+
               {phase === 'playing' && (
                 <div className="space-y-3 border-t border-slate-100 pt-4">
                   <Button
@@ -893,6 +981,90 @@ function ErrorBanner({ message }: { message: string }) {
     <div className="flex items-start gap-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
       <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
       <p>{message}</p>
+    </div>
+  );
+}
+
+function GeminiChatLinkSection({
+  value,
+  onChange,
+  onBlur,
+  onPaste,
+  pasteFeedback,
+  disabled,
+  readOnly,
+}: {
+  value: string;
+  onChange: (val: string) => void;
+  onBlur: () => void;
+  onPaste: () => void;
+  pasteFeedback: string | null;
+  disabled?: boolean;
+  readOnly?: boolean;
+}) {
+  const isHttps = (() => {
+    try {
+      return new URL(value.trim()).protocol === 'https:';
+    } catch {
+      return false;
+    }
+  })();
+
+  return (
+    <div className="space-y-2 pt-3 border-t border-slate-200">
+      <div className="flex flex-wrap items-center justify-between gap-1">
+        <label className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+          <Link2 className="h-3.5 w-3.5 text-brand-600" />
+          Google Gemini Chat Link
+        </label>
+        {isHttps && (
+          <a
+            href={value.trim()}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-[11px] font-semibold text-brand-600 hover:text-brand-800 transition"
+          >
+            <ExternalLink className="h-3 w-3" /> Test Link
+          </a>
+        )}
+      </div>
+
+      <p className="text-xs text-slate-500">
+        Paste the Gemini conversation link used to generate/revise your image.
+      </p>
+
+      <div className="flex flex-col sm:flex-row gap-2">
+        <div className="relative flex-1">
+          <input
+            type="url"
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            onBlur={onBlur}
+            disabled={disabled}
+            readOnly={readOnly}
+            placeholder="Paste your Google Gemini chat link here"
+            className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200 disabled:opacity-70 disabled:bg-slate-50 h-10"
+          />
+        </div>
+        {!disabled && !readOnly && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={onPaste}
+            className="shrink-0 text-xs font-semibold h-10 px-3.5 gap-1.5"
+          >
+            <ClipboardCopy className="h-3.5 w-3.5 text-slate-500" />
+            Paste
+          </Button>
+        )}
+      </div>
+
+      {pasteFeedback && (
+        <p className="text-[11px] font-medium text-emerald-600">
+          {pasteFeedback}
+        </p>
+      )}
     </div>
   );
 }

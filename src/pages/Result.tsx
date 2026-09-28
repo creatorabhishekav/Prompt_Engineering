@@ -4,7 +4,9 @@ import { motion } from 'framer-motion';
 import {
   AlertCircle,
   BarChart3,
+  ExternalLink,
   ImageIcon,
+  Link2,
   Loader2,
   Sparkles,
   Trophy,
@@ -186,6 +188,25 @@ export function ResultPage() {
                     <p className="text-sm font-medium text-slate-800">{res.prompt_2 || '(No follow-up prompt)'}</p>
                   </div>
                 </div>
+
+                {/* Google Gemini Chat Link (if submitted) */}
+                {res.gemini_chat_link && (
+                  <div className="rounded-xl border border-brand-100 bg-brand-50/40 p-4 space-y-1">
+                    <p className="text-xs font-bold uppercase tracking-wider text-brand-700 flex items-center gap-1.5">
+                      <Link2 className="h-3.5 w-3.5 text-brand-600" />
+                      Google Gemini Chat Link
+                    </p>
+                    <a
+                      href={res.gemini_chat_link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs font-semibold text-brand-600 hover:text-brand-800 hover:underline break-all inline-flex items-center gap-1.5"
+                    >
+                      <span className="truncate max-w-[280px] sm:max-w-[550px]">{res.gemini_chat_link}</span>
+                      <ExternalLink className="h-3 w-3 shrink-0" />
+                    </a>
+                  </div>
+                )}
 
                 {/* Score Section */}
                 {res.scoring_status === 'PROCESSING' && (

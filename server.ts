@@ -112,6 +112,7 @@ interface StoredSubmission {
   image_url: string | null;
   first_image_url?: string | null;
   final_image_url?: string | null;
+  gemini_chat_link?: string | null;
   prompt_used: string;
   prompt_1?: string;
   prompt_2?: string;
@@ -322,6 +323,7 @@ function seedSampleSubmissions() {
     image_url: sampleImgUrl,
     first_image_url: sampleImgUrl,
     final_image_url: sampleImgUrl,
+    gemini_chat_link: 'https://gemini.google.com/share/c897f1f98bc1',
     prompt_used: 'Futuristic cyberpunk neon street with rain reflections, glowing cyan holograms, flying hovercars',
     prompt_1: 'Cyberpunk street with neon signs and rain',
     prompt_2: 'Futuristic cyberpunk neon street with rain reflections, glowing cyan holograms, flying hovercars',
@@ -376,6 +378,7 @@ function seedSampleSubmissions() {
     image_url: sampleImgUrl,
     first_image_url: sampleImgUrl,
     final_image_url: sampleImgUrl,
+    gemini_chat_link: 'https://gemini.google.com/share/a123b456c789',
     prompt_used: 'Neon city street at night, wet asphalt, cyber aesthetic, glowing signs',
     status: 'completed',
     scoring_status: 'scored',
@@ -418,6 +421,7 @@ function seedSampleSubmissions() {
     image_url: sampleImgUrl,
     first_image_url: sampleImgUrl,
     final_image_url: sampleImgUrl,
+    gemini_chat_link: null,
     prompt_used: 'Cyberpunk metropolis highway in heavy rain with glowing purple billboards',
     status: 'completed',
     scoring_status: 'scored',
@@ -768,6 +772,23 @@ export async function createExpressApp() {
     res.json({ status: 'success', data: result, message: 'OK' });
   });
 
+  // Helper to validate HTTPS URLs for Google Gemini Chat Link
+  function validateHttpsUrl(rawUrl: string): { valid: boolean; error?: string; cleanedUrl?: string } {
+    const trimmed = (rawUrl || '').trim();
+    if (!trimmed) {
+      return { valid: false, error: 'Please paste your Google Gemini chat link before submitting.' };
+    }
+    try {
+      const parsed = new URL(trimmed);
+      if (parsed.protocol !== 'https:') {
+        return { valid: false, error: 'Please enter a valid HTTPS URL for your Google Gemini chat link.' };
+      }
+      return { valid: true, cleanedUrl: trimmed };
+    } catch {
+      return { valid: false, error: 'Please enter a valid HTTPS URL for your Google Gemini chat link.' };
+    }
+  }
+
   // Helper to construct ChallengeStatusRead response
   function formatChallengeStatus(sub: StoredSubmission, round: StoredRound, comp: StoredCompetition) {
     const now = Date.now();
@@ -786,6 +807,7 @@ export async function createExpressApp() {
       uploaded_image_url: sub.final_image_url || null,
       first_image_url: sub.first_image_url || null,
       final_image_url: sub.final_image_url || null,
+      gemini_chat_link: sub.gemini_chat_link || null,
       status: sub.status,
       prompt: sub.prompt_used || '',
       prompt_1: sub.prompt_1 || sub.prompt_used || '',
@@ -828,6 +850,7 @@ export async function createExpressApp() {
         image_url: null,
         first_image_url: null,
         final_image_url: null,
+        gemini_chat_link: null,
         prompt_used: '',
         prompt_1: '',
         prompt_2: '',
@@ -955,6 +978,75 @@ export async function createExpressApp() {
     });
   });
 
+  // Save or update Gemini Chat Link
+  app.put('/api/submissions/:submissionId/gemini-link', requireAuth, (req, res) => {
+    const user: StoredUser = (req as any).user;
+    const { submissionId } = req.params;
+    const sub = submissions.get(submissionId);
+    if (!sub) {
+      return res.status(404).json({ detail: 'Submission not found.' });
+    }
+    if (user.role !== 'ADMIN' && sub.user_id !== user.id) {
+      return res.status(403).json({ detail: 'Unauthorized to update this submission.' });
+    }
+
+    const rawLink = req.body.gemini_chat_link ?? req.body.link ?? '';
+    const trimmed = typeof rawLink === 'string' ? rawLink.trim() : '';
+
+    if (trimmed) {
+      const val = validateHttpsUrl(trimmed);
+      if (!val.valid) {
+        return res.status(400).json({ detail: val.error });
+      }
+      sub.gemini_chat_link = val.cleanedUrl!;
+    } else {
+      sub.gemini_chat_link = null;
+    }
+    sub.updated_at = new Date().toISOString();
+
+    const round = rounds.get(sub.round_id) || round1;
+    const comp = competitions.get(round.competition_id) || comp1;
+    res.json({
+      status: 'success',
+      data: formatChallengeStatus(sub, round, comp),
+      message: 'Gemini chat link updated',
+    });
+  });
+
+  app.post('/api/submissions/:submissionId/gemini-link', requireAuth, (req, res) => {
+    const user: StoredUser = (req as any).user;
+    const { submissionId } = req.params;
+    const sub = submissions.get(submissionId);
+    if (!sub) {
+      return res.status(404).json({ detail: 'Submission not found.' });
+    }
+    if (user.role !== 'ADMIN' && sub.user_id !== user.id) {
+      return res.status(403).json({ detail: 'Unauthorized to update this submission.' });
+    }
+
+    const rawLink = req.body.gemini_chat_link ?? req.body.link ?? '';
+    const trimmed = typeof rawLink === 'string' ? rawLink.trim() : '';
+
+    if (trimmed) {
+      const val = validateHttpsUrl(trimmed);
+      if (!val.valid) {
+        return res.status(400).json({ detail: val.error });
+      }
+      sub.gemini_chat_link = val.cleanedUrl!;
+    } else {
+      sub.gemini_chat_link = null;
+    }
+    sub.updated_at = new Date().toISOString();
+
+    const round = rounds.get(sub.round_id) || round1;
+    const comp = competitions.get(round.competition_id) || comp1;
+    res.json({
+      status: 'success',
+      data: formatChallengeStatus(sub, round, comp),
+      message: 'Gemini chat link updated',
+    });
+  });
+
   // Submit Prompt 1
   app.post('/api/submissions/:submissionId/prompt-1', requireAuth, (req, res) => {
     const { submissionId } = req.params;
@@ -1076,6 +1168,17 @@ export async function createExpressApp() {
     sub.scoring_status = 'scored';
     sub.submitted_at = new Date().toISOString();
 
+    // If participant updated their Gemini chat link along with final image upload, persist it
+    if (req.body?.gemini_chat_link !== undefined) {
+      const rawLink = typeof req.body.gemini_chat_link === 'string' ? req.body.gemini_chat_link.trim() : '';
+      if (rawLink) {
+        const val = validateHttpsUrl(rawLink);
+        if (val.valid) {
+          sub.gemini_chat_link = val.cleanedUrl!;
+        }
+      }
+    }
+
     try {
       // Evaluate final stage with CLIP ViT-B/32 + multi-factor computer vision
       const breakdown = await evaluateSubmissionImages(
@@ -1162,6 +1265,18 @@ export async function createExpressApp() {
     const round = rounds.get(sub.round_id) || round1;
     const comp = competitions.get(round.competition_id) || comp1;
 
+    // Validate Google Gemini Chat Link is provided and valid HTTPS URL
+    const rawLink = req.body?.gemini_chat_link !== undefined ? req.body.gemini_chat_link : sub.gemini_chat_link;
+    const trimmed = typeof rawLink === 'string' ? rawLink.trim() : '';
+    if (!trimmed) {
+      return res.status(400).json({ detail: 'Please paste your Google Gemini chat link before submitting.' });
+    }
+    const val = validateHttpsUrl(trimmed);
+    if (!val.valid) {
+      return res.status(400).json({ detail: val.error });
+    }
+    sub.gemini_chat_link = val.cleanedUrl!;
+
     sub.status = 'completed';
     sub.scoring_status = 'scored';
     if (!sub.submitted_at) {
@@ -1219,6 +1334,7 @@ export async function createExpressApp() {
         uploaded_image_url: s.final_image_url || s.image_url,
         first_image_url: s.first_image_url,
         final_image_url: s.final_image_url,
+        gemini_chat_link: s.gemini_chat_link || null,
         prompt_used: s.prompt_used,
         prompt_1: s.prompt_1,
         prompt_2: s.prompt_2,
@@ -1276,6 +1392,7 @@ export async function createExpressApp() {
         uploaded_image_url: s.final_image_url || s.image_url,
         first_image_url: s.first_image_url,
         final_image_url: s.final_image_url,
+        gemini_chat_link: s.gemini_chat_link || null,
         prompt_used: s.prompt_used,
         prompt_1: s.prompt_1,
         prompt_2: s.prompt_2,
@@ -1669,6 +1786,7 @@ export async function createExpressApp() {
         image_url: s.final_image_url || s.image_url,
         first_image_url: s.first_image_url,
         final_image_url: s.final_image_url,
+        gemini_chat_link: s.gemini_chat_link || null,
         status: s.status,
         started_at_elapsed: null,
         deadline_elapsed: null,

@@ -164,9 +164,12 @@ export const challengeApi = {
       })
       .then(unwrap<ChallengeStatus>);
   },
-  uploadFinalImage: (submissionId: string, file: File) => {
+  uploadFinalImage: (submissionId: string, file: File, gemini_chat_link?: string) => {
     const formData = new FormData();
     formData.append('file', file);
+    if (gemini_chat_link) {
+      formData.append('gemini_chat_link', gemini_chat_link);
+    }
     return api
       .post<Envelope<ChallengeStatus>>(`/submissions/${submissionId}/upload-final-image`, formData, {
         headers: { 'Content-Type': undefined },
@@ -182,8 +185,14 @@ export const challengeApi = {
       })
       .then(unwrap<ChallengeStatus>);
   },
-  submit: (submissionId: string) =>
-    api.post(`/submissions/${submissionId}/submit`).then(unwrap<ChallengeStatus>),
+  saveGeminiChatLink: (submissionId: string, gemini_chat_link: string) =>
+    api
+      .put(`/submissions/${submissionId}/gemini-link`, { gemini_chat_link })
+      .then(unwrap<ChallengeStatus>),
+  submit: (submissionId: string, gemini_chat_link?: string) =>
+    api
+      .post(`/submissions/${submissionId}/submit`, { gemini_chat_link })
+      .then(unwrap<ChallengeStatus>),
   getProtectedTargetImageBlob: async (roundId: string): Promise<string> => {
     const res = await api.get(`/rounds/${roundId}/protected-target-image`, {
       responseType: 'blob',

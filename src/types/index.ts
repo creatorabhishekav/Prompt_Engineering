@@ -157,6 +157,9 @@ export interface Submission {
   round_id: string;
   target_image_id: string | null;
   image_url: string | null;
+  first_image_url?: string | null;
+  final_image_url?: string | null;
+  gemini_chat_link?: string | null;
   prompt_used: string;
   prompt_1?: string;
   prompt_2?: string;
@@ -209,6 +212,7 @@ export interface AdminSubmission {
   evaluation_method?: string | null;
   first_image_url?: string | null;
   final_image_url?: string | null;
+  gemini_chat_link?: string | null;
   first_scoring_status?: string | null;
   first_score?: number | null;
   first_score_breakdown?: ScoreBreakdown | null;
@@ -266,6 +270,7 @@ export interface ChallengeStatus {
   uploaded_image_url: string | null;
   first_image_url?: string | null;
   final_image_url?: string | null;
+  gemini_chat_link?: string | null;
   status: string;
   prompt: string;
   prompt_1?: string;
@@ -311,6 +316,7 @@ export interface ResultItem {
   uploaded_image_url: string | null;
   first_image_url?: string | null;
   final_image_url?: string | null;
+  gemini_chat_link?: string | null;
   prompt_used: string;
   prompt_1?: string;
   prompt_2?: string;
