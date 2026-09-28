@@ -1239,42 +1239,86 @@ export async function createExpressApp() {
   // Leaderboard
   app.get('/api/leaderboard', requireAuth, (req, res) => {
     const { round_id } = req.query;
-    let relevantSubs = Array.from(submissions.values()).filter(
-      (s) => s.status === 'completed' || s.scoring_status === 'scored'
-    );
+
+    // Filter ONLY submissions that have an official, valid FINAL evaluation score
+    let eligibleSubs = Array.from(submissions.values()).filter((s) => {
+      // Must have final_stage_breakdown and a valid numerical total_score
+      const finalScore = s.final_stage_breakdown?.total_score;
+      if (typeof finalScore !== 'number' || isNaN(finalScore) || finalScore < 0) {
+        return false;
+      }
+      return true;
+    });
 
     if (round_id) {
-      relevantSubs = relevantSubs.filter((s) => s.round_id === round_id);
+      eligibleSubs = eligibleSubs.filter((s) => s.round_id === round_id);
     }
 
-    // Group by user and take highest total_score
+    // Group by user and take highest authoritative FINAL score
     const userMaxMap = new Map<string, StoredSubmission>();
-    for (const sub of relevantSubs) {
+    for (const sub of eligibleSubs) {
       const current = userMaxMap.get(sub.user_id);
-      const score = sub.total_score || 0;
-      if (!current || score > (current.total_score || 0)) {
+      const score = Number(sub.final_stage_breakdown?.total_score ?? 0);
+      const currentScore = Number(current?.final_stage_breakdown?.total_score ?? -1);
+
+      if (!current || score > currentScore) {
         userMaxMap.set(sub.user_id, sub);
+      } else if (score === currentScore) {
+        // Stable tie-breaker: earlier submitted_at/created_at timestamp
+        const subTime = new Date(sub.submitted_at || sub.created_at).getTime();
+        const currentTime = new Date(current.submitted_at || current.created_at).getTime();
+        if (subTime < currentTime) {
+          userMaxMap.set(sub.user_id, sub);
+        }
       }
     }
 
-    const sorted = Array.from(userMaxMap.values()).sort(
-      (a, b) => (b.total_score || 0) - (a.total_score || 0)
-    );
+    // Sort ALL participants by FINAL score (descending numeric), with stable tie-breaking
+    const sorted = Array.from(userMaxMap.values()).sort((a, b) => {
+      const scoreA = Number(a.final_stage_breakdown?.total_score ?? 0);
+      const scoreB = Number(b.final_stage_breakdown?.total_score ?? 0);
 
+      if (scoreB !== scoreA) {
+        return scoreB - scoreA;
+      }
+
+      // Tie-breaker 1: Earlier submission timestamp
+      const timeA = new Date(a.submitted_at || a.created_at).getTime();
+      const timeB = new Date(b.submitted_at || b.created_at).getTime();
+      if (timeA !== timeB) {
+        return timeA - timeB;
+      }
+
+      // Tie-breaker 2: Alphabetical user_id for strict determinism
+      return a.user_id.localeCompare(b.user_id);
+    });
+
+    // Competition standard ranking (1224) or ordinal ranking:
+    // If scores are equal, they share the rank; the next different score skips ranks.
+    let currentRank = 1;
     const entries = sorted.map((sub, index) => {
       const u = users.get(sub.user_id);
-      const b = sub.final_stage_breakdown || sub.first_stage_breakdown;
+      const b = sub.final_stage_breakdown!;
+      const finalScore = Number(b.total_score);
+
+      if (index > 0) {
+        const prevScore = Number(sorted[index - 1].final_stage_breakdown?.total_score ?? 0);
+        if (finalScore < prevScore) {
+          currentRank = index + 1;
+        }
+      }
+
       return {
-        rank: index + 1,
+        rank: currentRank,
         user_id: sub.user_id,
         username: u?.username || 'Participant',
         full_name: u?.full_name || null,
-        total_score: sub.total_score || 0,
-        semantic_score: b?.semantic_score || 0,
-        composition_score: b?.composition_score || 0,
-        objects_score: b?.objects_score || 0,
-        color_score: b?.color_score || 0,
-        details_score: b?.details_score || 0,
+        total_score: finalScore,
+        semantic_score: Number(b.semantic_score ?? 0),
+        composition_score: Number(b.composition_score ?? 0),
+        objects_score: Number(b.objects_score ?? 0),
+        color_score: Number(b.color_score ?? 0),
+        details_score: Number(b.details_score ?? 0),
         rounds_played: 1,
       };
     });

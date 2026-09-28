@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { AlertCircle, Crown, Medal, RefreshCw, Trophy } from 'lucide-react';
@@ -7,15 +7,11 @@ import { Card, CardBody } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Loading } from '@/components/ui/Loading';
 import { leaderboardApi, getApiErrorMessage } from '@/lib/api';
+import { useAuth } from '@/context/AuthContext';
 import type { LeaderboardEntry } from '@/types';
 
-const podiumConfig = [
-  { rank: 2, color: 'bg-slate-200', height: 'h-20', label: '2nd', icon: <Medal className="h-5 w-5 text-slate-500" /> },
-  { rank: 1, color: 'bg-amber-300', height: 'h-28', label: '1st', icon: <Crown className="h-6 w-6 text-amber-600" /> },
-  { rank: 3, color: 'bg-orange-300', height: 'h-16', label: '3rd', icon: <Medal className="h-5 w-5 text-orange-500" /> },
-];
-
 export function LeaderboardPage() {
+  const { user } = useAuth();
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -37,15 +33,36 @@ export function LeaderboardPage() {
     void load();
   }, []);
 
-  const first = entries.find((e) => e.rank === 1);
-  const second = entries.find((e) => e.rank === 2);
-  const third = entries.find((e) => e.rank === 3);
+  // Compute sorted participants strictly by numeric FINAL total_score descending
+  const sortedEntries = useMemo(() => {
+    return [...entries].sort((a, b) => {
+      const scoreA = Number(a.total_score);
+      const scoreB = Number(b.total_score);
+      if (scoreB !== scoreA) {
+        return scoreB - scoreA;
+      }
+      return (a.rank || 0) - (b.rank || 0);
+    });
+  }, [entries]);
+
+  // Extract Top 3 for the podium from the sorted dataset
+  const first = sortedEntries.length > 0 ? sortedEntries[0] : null;
+  const second = sortedEntries.length > 1 ? sortedEntries[1] : null;
+  const third = sortedEntries.length > 2 ? sortedEntries[2] : null;
 
   const topThree = [
-    { ...podiumConfig[0], entry: second },
-    { ...podiumConfig[1], entry: first },
-    { ...podiumConfig[2], entry: third },
+    { rank: 2, color: 'bg-slate-200', height: 'h-20', label: '2nd', icon: <Medal className="h-5 w-5 text-slate-500" />, entry: second },
+    { rank: 1, color: 'bg-amber-300', height: 'h-28', label: '1st', icon: <Crown className="h-6 w-6 text-amber-600" />, entry: first },
+    { rank: 3, color: 'bg-orange-300', height: 'h-16', label: '3rd', icon: <Medal className="h-5 w-5 text-orange-500" />, entry: third },
   ];
+
+  // Check if current authenticated user has an entry on the leaderboard
+  const currentUserEntry = useMemo(() => {
+    if (!user) return null;
+    return sortedEntries.find(
+      (e) => e.user_id === user.id || e.username.toLowerCase() === user.username.toLowerCase()
+    );
+  }, [user, sortedEntries]);
 
   return (
     <PageTransition>
@@ -56,7 +73,7 @@ export function LeaderboardPage() {
               PROMPT ENGINEERING
             </h1>
             <p className="mt-1 text-slate-500">
-              Reverse Prompt Engineering Challenge — Leaderboard (/80)
+              Reverse Prompt Engineering Challenge — Official Final Leaderboard (/80)
             </p>
           </div>
           <Button variant="outline" size="sm" onClick={() => void load()} disabled={loading}>
@@ -71,7 +88,38 @@ export function LeaderboardPage() {
           </div>
         )}
 
-        {/* Podium visual */}
+        {/* Current User Highlight Banner if ranked */}
+        {currentUserEntry && (
+          <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-brand-200 bg-brand-50/80 px-6 py-4 text-brand-900 shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-600 text-white font-bold text-sm shadow-sm">
+                #{currentUserEntry.rank}
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold uppercase tracking-wider text-brand-700">Your Current Standing</span>
+                  <span className="rounded-full bg-brand-200/80 px-2 py-0.5 text-[10px] font-semibold text-brand-800">
+                    {user?.role === 'PARTICIPANT' ? 'Participant' : 'You'}
+                  </span>
+                </div>
+                <div className="text-base font-extrabold text-slate-900">
+                  {currentUserEntry.full_name || currentUserEntry.username} (@{currentUserEntry.username})
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="text-right">
+                <div className="text-xs font-medium text-slate-500">Final AI Score</div>
+                <div className="text-xl font-black text-brand-700">
+                  {Number(currentUserEntry.total_score).toFixed(1)}{' '}
+                  <span className="text-xs font-normal text-slate-400">/ 80</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Dynamic Top 3 Podium visual */}
         <div className="flex items-end justify-center gap-4 pt-4">
           {topThree.map((p) => (
             <motion.div
@@ -84,31 +132,31 @@ export function LeaderboardPage() {
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-card ring-1 ring-slate-200">
                 {p.icon}
               </div>
-              <span className="text-xs font-bold text-slate-800">
+              <span className="text-xs font-bold text-slate-800 text-center max-w-[100px] truncate">
                 {p.entry ? p.entry.full_name || p.entry.username : '—'}
               </span>
               {p.entry && (
                 <span className="text-xs font-extrabold text-brand-600">
-                  {p.entry.total_score} / 80
+                  {Number(p.entry.total_score).toFixed(1)} / 80
                 </span>
               )}
-              <div className={`w-24 rounded-t-xl ${p.color} ${p.height} flex items-center justify-center text-xs font-black text-slate-700`}>
+              <div className={`w-24 rounded-t-xl ${p.color} ${p.height} flex items-center justify-center text-xs font-black text-slate-700 shadow-sm`}>
                 {p.label}
               </div>
             </motion.div>
           ))}
         </div>
 
-        {/* Table */}
+        {/* Full Leaderboard Table (Option A: Top 3 Podium + Complete Table with All Participants) */}
         <Card>
           <CardBody className="p-0">
             {loading && <Loading label="Loading leaderboard rankings..." />}
-            {!loading && entries.length === 0 && (
+            {!loading && sortedEntries.length === 0 && (
               <div className="py-12 text-center text-sm text-slate-400">
-                No scored submissions yet. Be the first to complete a challenge!
+                No scored final submissions yet. Be the first to complete a challenge!
               </div>
             )}
-            {!loading && entries.length > 0 && (
+            {!loading && sortedEntries.length > 0 && (
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
                   <thead>
@@ -116,44 +164,70 @@ export function LeaderboardPage() {
                       <th className="px-6 py-4 font-semibold">Rank</th>
                       <th className="px-6 py-4 font-semibold">Participant</th>
                       <th className="px-6 py-4 text-center font-semibold">Rounds Played</th>
-                      <th className="px-6 py-4 text-right font-semibold">AI Score (/80)</th>
+                      <th className="px-6 py-4 text-right font-semibold">Final AI Score (/80)</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {entries.map((row) => (
-                      <tr
-                        key={row.user_id}
-                        className="border-b border-slate-50 last:border-0 hover:bg-slate-50/60"
-                      >
-                        <td className="px-6 py-4">
-                          <span
-                            className={`inline-flex h-8 w-8 items-center justify-center rounded-full text-xs font-extrabold ${
-                              row.rank === 1
-                                ? 'bg-amber-100 text-amber-800 ring-1 ring-amber-300'
-                                : row.rank === 2
-                                ? 'bg-slate-200 text-slate-800'
-                                : row.rank === 3
-                                ? 'bg-orange-100 text-orange-800'
-                                : 'bg-slate-100 text-slate-600'
-                            }`}
-                          >
-                            #{row.rank}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 font-medium text-slate-900">
-                          <div className="font-bold">{row.full_name || row.username}</div>
-                          <div className="text-xs text-slate-400">@{row.username}</div>
-                        </td>
-                        <td className="px-6 py-4 text-center text-slate-500 font-medium">
-                          {row.rounds_played}
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <span className="inline-block rounded-xl bg-brand-50 px-3 py-1 text-base font-extrabold text-brand-700">
-                            {row.total_score} <span className="text-xs font-normal text-slate-400">/ 80</span>
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
+                    {sortedEntries.map((row) => {
+                      const isCurrentUser = Boolean(
+                        user && (row.user_id === user.id || row.username.toLowerCase() === user.username.toLowerCase())
+                      );
+
+                      return (
+                        <tr
+                          key={row.user_id}
+                          className={`border-b border-slate-50 last:border-0 transition-colors ${
+                            isCurrentUser
+                              ? 'bg-brand-50/70 hover:bg-brand-50 font-medium'
+                              : 'hover:bg-slate-50/60'
+                          }`}
+                        >
+                          <td className="px-6 py-4">
+                            <span
+                              className={`inline-flex h-8 w-8 items-center justify-center rounded-full text-xs font-extrabold ${
+                                row.rank === 1
+                                  ? 'bg-amber-100 text-amber-800 ring-1 ring-amber-300'
+                                  : row.rank === 2
+                                  ? 'bg-slate-200 text-slate-800'
+                                  : row.rank === 3
+                                  ? 'bg-orange-100 text-orange-800'
+                                  : 'bg-slate-100 text-slate-600'
+                              }`}
+                            >
+                              #{row.rank}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 font-medium text-slate-900">
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold">{row.full_name || row.username}</span>
+                              {isCurrentUser && (
+                                <span className="rounded bg-brand-600 px-1.5 py-0.5 text-[10px] font-bold text-white uppercase tracking-wide">
+                                  You
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-xs text-slate-400">@{row.username}</div>
+                          </td>
+                          <td className="px-6 py-4 text-center text-slate-500 font-medium">
+                            {row.rounds_played}
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                            <span
+                              className={`inline-block rounded-xl px-3 py-1 text-base font-extrabold ${
+                                isCurrentUser
+                                  ? 'bg-brand-600 text-white'
+                                  : 'bg-brand-50 text-brand-700'
+                              }`}
+                            >
+                              {Number(row.total_score).toFixed(1)}{' '}
+                              <span className={`text-xs font-normal ${isCurrentUser ? 'text-brand-100' : 'text-slate-400'}`}>
+                                / 80
+                              </span>
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -164,7 +238,7 @@ export function LeaderboardPage() {
         <div className="flex items-start gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs text-slate-600">
           <Trophy className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
           <p>
-            Leaderboard rankings are based on backend automated AI scores (/80). Offline teacher/judge 20 marks are added separately offline.
+            Leaderboard rankings reflect only official FINAL evaluation scores (/80). Offline teacher/judge 20 marks are added separately offline.
           </p>
         </div>
 
