@@ -184,6 +184,18 @@ export const challengeApi = {
   },
   submit: (submissionId: string) =>
     api.post(`/submissions/${submissionId}/submit`).then(unwrap<ChallengeStatus>),
+  getProtectedTargetImageBlob: async (roundId: string): Promise<string> => {
+    const res = await api.get(`/rounds/${roundId}/protected-target-image`, {
+      responseType: 'blob',
+    });
+    return URL.createObjectURL(res.data);
+  },
+  getChallengeTargetImageBlob: async (challengeId: string): Promise<string> => {
+    const res = await api.get(`/challenges/${challengeId}/target-image`, {
+      responseType: 'blob',
+    });
+    return URL.createObjectURL(res.data);
+  },
 };
 
 export const resultsApi = {

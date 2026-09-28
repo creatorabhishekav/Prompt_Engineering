@@ -49,26 +49,25 @@ function computeLeaderboard(
     eligibleSubs = eligibleSubs.filter((s) => s.round_id === roundId);
   }
 
-  // Group by user and take highest authoritative FINAL score
-  const userMaxMap = new Map<string, StoredSubmission>();
+  // Group by user and take their latest authoritative FINAL submission
+  // (If a participant replaces their final image or plays multiple rounds, their authoritative
+  // current submission reflects their latest submitted attempt)
+  const userSubmissionMap = new Map<string, StoredSubmission>();
   for (const sub of eligibleSubs) {
-    const current = userMaxMap.get(sub.user_id);
-    const score = Number(sub.final_stage_breakdown?.total_score ?? 0);
-    const currentScore = Number(current?.final_stage_breakdown?.total_score ?? -1);
-
-    if (!current || score > currentScore) {
-      userMaxMap.set(sub.user_id, sub);
-    } else if (score === currentScore) {
-      const subTime = new Date(sub.submitted_at || sub.created_at).getTime();
-      const currentTime = new Date(current.submitted_at || current.created_at).getTime();
-      if (subTime < currentTime) {
-        userMaxMap.set(sub.user_id, sub);
+    const current = userSubmissionMap.get(sub.user_id);
+    if (!current) {
+      userSubmissionMap.set(sub.user_id, sub);
+    } else {
+      const subTime = new Date(sub.submitted_at || (sub as any).updated_at || sub.created_at).getTime();
+      const currentTime = new Date(current.submitted_at || (current as any).updated_at || current.created_at).getTime();
+      if (subTime >= currentTime) {
+        userSubmissionMap.set(sub.user_id, sub);
       }
     }
   }
 
-  // Sort ALL participants by FINAL score (descending numeric), with stable tie-breaking
-  const sorted = Array.from(userMaxMap.values()).sort((a, b) => {
+  // Sort ALL participants by authoritative CURRENT FINAL score (descending numeric), with stable tie-breaking
+  const sorted = Array.from(userSubmissionMap.values()).sort((a, b) => {
     const scoreA = Number(a.final_stage_breakdown?.total_score ?? 0);
     const scoreB = Number(b.final_stage_breakdown?.total_score ?? 0);
 
@@ -391,8 +390,48 @@ async function runLeaderboardTests() {
   assert.equal(res8[0].total_score, 79.5);
   console.log('✓ TEST 8 PASSED: Scaled 50-participant leaderboard verified successfully.\n');
 
+  // TEST 9: Replacement of Final Image (Old FINAL = 75, New/Replaced FINAL = 62)
+  console.log('TEST 9: Re-upload/Replace Final Image (Old FINAL = 75 -> Replaced FINAL = 62). Expect 62.');
+  const test9Sub: StoredSubmission = {
+    id: 'sub_replace_demo',
+    user_id: 'user_1',
+    round_id: 'round_1',
+    status: 'completed',
+    submitted_at: '2026-09-28T02:00:00Z',
+    created_at: '2026-09-28T01:30:00Z',
+    final_stage_breakdown: {
+      semantic_score: 30,
+      composition_score: 20,
+      objects_score: 15,
+      color_score: 6,
+      details_score: 4,
+      total_score: 75, // Old score before replacement
+    },
+  };
+
+  // Initially scores 75
+  const res9Before = computeLeaderboard([test9Sub], usersMap);
+  assert.equal(res9Before[0].total_score, 75);
+
+  // Participant re-uploads / replaces final image: updates the same submission's final_stage_breakdown to 62
+  const test9SubReplaced: StoredSubmission = {
+    ...test9Sub,
+    submitted_at: '2026-09-28T02:15:00Z',
+    final_stage_breakdown: {
+      semantic_score: 24,
+      composition_score: 16,
+      objects_score: 12,
+      color_score: 6,
+      details_score: 4,
+      total_score: 62, // Current authoritative final score
+    },
+  };
+  const res9After = computeLeaderboard([test9SubReplaced], usersMap);
+  assert.equal(res9After[0].total_score, 62, 'Leaderboard must display current authoritative score (62), not historical (75)');
+  console.log('✓ TEST 9 PASSED: Replaced final photo score correctly reflected as 62 on leaderboard.\n');
+
   console.log('====================================================');
-  console.log('ALL 8 LEADERBOARD TEST CASES PASSED WITH 100% SUCCESS');
+  console.log('ALL 9 LEADERBOARD TEST CASES PASSED WITH 100% SUCCESS');
   console.log('====================================================');
 }
 

@@ -870,6 +870,71 @@ export async function createExpressApp() {
     });
   });
 
+  // Protected Target Image Delivery (Requires authentication & active authorization)
+  app.get('/api/rounds/:roundId/protected-target-image', requireAuth, (req, res) => {
+    const user: StoredUser = (req as any).user;
+    const { roundId } = req.params;
+    const round = rounds.get(roundId);
+    if (!round) {
+      return res.status(404).json({ detail: 'Round not found.' });
+    }
+
+    // Verify participant has access (Admin or active/scheduled round)
+    if (user.role !== 'ADMIN') {
+      if (round.status === 'draft' || round.is_archived) {
+        return res.status(403).json({ detail: 'This challenge round is not open to participants.' });
+      }
+    }
+
+    // Resolve authoritative target image path
+    let localPath = resolveLocalImagePath(round.target_image_url || '', MEDIA_DIR);
+    if (!localPath || !fs.existsSync(localPath)) {
+      localPath = path.resolve(MEDIA_DIR, 'rounds/round_cyberpunk.png');
+    }
+
+    if (!fs.existsSync(localPath)) {
+      return res.status(404).json({ detail: 'Target image file not found.' });
+    }
+
+    // Set cache control for the active session, content type, and send file
+    res.setHeader('Cache-Control', 'private, max-age=300');
+    res.setHeader('Content-Type', 'image/png');
+    res.sendFile(localPath);
+  });
+
+  // Protected Target Image Delivery by Challenge ID (Matches user request GET /api/challenges/:id/target-image)
+  app.get('/api/challenges/:challengeId/target-image', requireAuth, (req, res) => {
+    const user: StoredUser = (req as any).user;
+    const { challengeId } = req.params;
+    const sub = submissions.get(challengeId);
+    if (!sub) {
+      return res.status(404).json({ detail: 'Challenge submission not found.' });
+    }
+
+    // Verify authorized user: owner of submission or Admin
+    if (user.role !== 'ADMIN' && sub.user_id !== user.id) {
+      return res.status(403).json({ detail: 'Unauthorized to view this challenge target image.' });
+    }
+
+    const round = rounds.get(sub.round_id);
+    if (!round) {
+      return res.status(404).json({ detail: 'Associated round not found.' });
+    }
+
+    let localPath = resolveLocalImagePath(round.target_image_url || '', MEDIA_DIR);
+    if (!localPath || !fs.existsSync(localPath)) {
+      localPath = path.resolve(MEDIA_DIR, 'rounds/round_cyberpunk.png');
+    }
+
+    if (!fs.existsSync(localPath)) {
+      return res.status(404).json({ detail: 'Target image file not found.' });
+    }
+
+    res.setHeader('Cache-Control', 'private, max-age=300');
+    res.setHeader('Content-Type', 'image/png');
+    res.sendFile(localPath);
+  });
+
   // Save prompt draft
   app.put('/api/submissions/:submissionId/prompt', requireAuth, (req, res) => {
     const { submissionId } = req.params;
@@ -1254,27 +1319,26 @@ export async function createExpressApp() {
       eligibleSubs = eligibleSubs.filter((s) => s.round_id === round_id);
     }
 
-    // Group by user and take highest authoritative FINAL score
-    const userMaxMap = new Map<string, StoredSubmission>();
+    // Group by user and take their latest authoritative FINAL submission
+    // (If a participant replaces their final image or plays multiple rounds, their authoritative
+    // current submission reflects their latest submitted attempt)
+    const userSubmissionMap = new Map<string, StoredSubmission>();
     for (const sub of eligibleSubs) {
-      const current = userMaxMap.get(sub.user_id);
-      const score = Number(sub.final_stage_breakdown?.total_score ?? 0);
-      const currentScore = Number(current?.final_stage_breakdown?.total_score ?? -1);
-
-      if (!current || score > currentScore) {
-        userMaxMap.set(sub.user_id, sub);
-      } else if (score === currentScore) {
-        // Stable tie-breaker: earlier submitted_at/created_at timestamp
-        const subTime = new Date(sub.submitted_at || sub.created_at).getTime();
-        const currentTime = new Date(current.submitted_at || current.created_at).getTime();
-        if (subTime < currentTime) {
-          userMaxMap.set(sub.user_id, sub);
+      const current = userSubmissionMap.get(sub.user_id);
+      if (!current) {
+        userSubmissionMap.set(sub.user_id, sub);
+      } else {
+        // Use latest submission timestamp
+        const subTime = new Date(sub.submitted_at || sub.updated_at || sub.created_at).getTime();
+        const currentTime = new Date(current.submitted_at || current.updated_at || current.created_at).getTime();
+        if (subTime >= currentTime) {
+          userSubmissionMap.set(sub.user_id, sub);
         }
       }
     }
 
-    // Sort ALL participants by FINAL score (descending numeric), with stable tie-breaking
-    const sorted = Array.from(userMaxMap.values()).sort((a, b) => {
+    // Sort ALL participants by authoritative CURRENT FINAL score (descending numeric), with stable tie-breaking
+    const sorted = Array.from(userSubmissionMap.values()).sort((a, b) => {
       const scoreA = Number(a.final_stage_breakdown?.total_score ?? 0);
       const scoreB = Number(b.final_stage_breakdown?.total_score ?? 0);
 

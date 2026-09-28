@@ -18,6 +18,8 @@ import { Card, CardBody, CardFooter, CardHeader, CardTitle } from '@/components/
 import { Button } from '@/components/ui/Button';
 import { Loading } from '@/components/ui/Loading';
 import { challengeApi, getApiErrorMessage, resolveMediaUrl } from '@/lib/api';
+import { useAuth } from '@/context/AuthContext';
+import { ProtectedTargetImage } from '@/components/ProtectedTargetImage';
 import type { ActiveRound, ChallengeStatus } from '@/types';
 
 function statusColor(status: string): string {
@@ -37,6 +39,7 @@ function statusColor(status: string): string {
 type Phase = 'loading' | 'lobby' | 'playing' | 'locked' | 'error' | 'empty';
 
 export function ChallengePage() {
+  const { user } = useAuth();
   const [phase, setPhase] = useState<Phase>('loading');
   const [rounds, setRounds] = useState<ActiveRound[]>([]);
   const [activeRound, setActiveRound] = useState<ActiveRound | null>(null);
@@ -463,26 +466,28 @@ export function ChallengePage() {
           {/* Target image */}
           <Card className="h-full">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <ImageIcon className="h-5 w-5 text-brand-600" />
-                Target Image
+              <CardTitle className="flex items-center justify-between">
+                <span className="flex items-center gap-2">
+                  <ImageIcon className="h-5 w-5 text-brand-600" />
+                  Target Image
+                </span>
+                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
+                  Protected Content
+                </span>
               </CardTitle>
             </CardHeader>
             <CardBody className="space-y-3">
-              {activeRound?.target_image_url ? (
-                <img
-                  src={resolveMediaUrl(activeRound.target_image_url) || undefined}
-                  alt="Target image to describe"
-                  className="aspect-square w-full rounded-xl border border-slate-200 bg-slate-50 object-cover"
-                />
-              ) : (
-                <div className="flex aspect-square items-center justify-center rounded-xl bg-slate-100 text-sm text-slate-400">
-                  No target image
-                </div>
-              )}
-              <p className="text-xs text-slate-500">
-                Write Prompt 1, upload your first generated image to receive practice ML feedback, then refine with Follow-up Prompt 2 for your final leaderboard attempt!
-              </p>
+              <ProtectedTargetImage
+                roundId={activeRound?.id}
+                challengeId={challenge?.id}
+                fallbackUrl={activeRound?.target_image_url}
+                participantId={user?.id}
+                className="w-full"
+              />
+              <div className="flex items-center justify-between text-xs text-slate-500">
+                <span>Study colors, objects, lighting & layout carefully.</span>
+                <span className="text-[11px] text-slate-400">Copying protected</span>
+              </div>
             </CardBody>
           </Card>
 

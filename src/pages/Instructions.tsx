@@ -35,7 +35,8 @@ const steps = [
 const rules = [
   'One final submission per round.',
   'Timer is server-authoritative; browser refreshes do NOT reset the clock.',
-  'Supported formats: PNG, JPG, JPEG, WEBP (max 5MB).',
+  'Target image is protected during the event: direct saving, dragging, and copying are disabled.',
+  'Supported formats: PNG, JPG, JPEG, WEBP (max 20MB).',
   'Generate images using your own external Gemini account.',
   'AI score is calculated out of 80 points by the backend evaluator.',
   'Teacher / judge offline 20 marks are added separately offline.',
