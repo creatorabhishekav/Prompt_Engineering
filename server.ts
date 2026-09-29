@@ -4,6 +4,7 @@ import multer from 'multer';
 import path from 'node:path';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import sharp from 'sharp';
 import {
   evaluateTargetVsCandidate,
   initMLModel,
@@ -19,10 +20,45 @@ const __dirname = path.dirname(__filename);
 const PORT = 3000;
 const HOST = '0.0.0.0';
 
-// Ensure media and upload directories exist
+// Ensure media, upload, and rounds directories exist
 const MEDIA_DIR = path.resolve(__dirname, 'media');
 const UPLOAD_DIR = path.resolve(MEDIA_DIR, 'uploads');
+const ROUNDS_DIR = path.resolve(MEDIA_DIR, 'rounds');
 fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+fs.mkdirSync(ROUNDS_DIR, { recursive: true });
+
+export async function ensureDefaultTargetImages(): Promise<void> {
+  fs.mkdirSync(ROUNDS_DIR, { recursive: true });
+
+  const cyberpunkPath = path.resolve(ROUNDS_DIR, 'round_cyberpunk.png');
+  if (!fs.existsSync(cyberpunkPath)) {
+    const targetSvg = Buffer.from(`
+      <svg width="600" height="600" xmlns="http://www.w3.org/2000/svg">
+        <rect width="600" height="600" fill="#0b0b1a"/>
+        <rect x="80" y="300" width="440" height="220" fill="#151530"/>
+        <circle cx="180" cy="220" r="60" fill="#00f3ff"/>
+        <rect x="330" y="150" width="150" height="120" fill="#ff007f"/>
+        <line x1="0" y1="520" x2="600" y2="520" stroke="#00f3ff" stroke-width="8"/>
+        <line x1="80" y1="300" x2="520" y2="300" stroke="#ff007f" stroke-width="6"/>
+      </svg>
+    `);
+    await sharp(targetSvg).png().toFile(cyberpunkPath);
+  }
+
+  const forestPath = path.resolve(ROUNDS_DIR, 'round_crystal_forest.png');
+  if (!fs.existsSync(forestPath)) {
+    const forestSvg = Buffer.from(`
+      <svg width="600" height="600" xmlns="http://www.w3.org/2000/svg">
+        <rect width="600" height="600" fill="#05141e"/>
+        <circle cx="300" cy="250" r="100" fill="#00e5ff"/>
+        <rect x="150" y="350" width="300" height="180" fill="#0d2b3a"/>
+        <circle cx="200" cy="400" r="40" fill="#a855f7"/>
+        <circle cx="400" cy="380" r="50" fill="#3b82f6"/>
+      </svg>
+    `);
+    await sharp(forestSvg).png().toFile(forestPath);
+  }
+}
 
 // Setup multer for image uploads
 const storage = multer.diskStorage({
@@ -91,10 +127,13 @@ interface StoredRound {
 }
 
 interface StoredScoreBreakdown {
+  semantic_similarity?: number;
   semantic_score: number;
   composition_score: number;
   objects_score: number;
   color_score: number;
+  image_quality_score?: number;
+  fine_details_score?: number;
   details_score: number;
   total_score: number;
   clip_similarity?: number;
@@ -102,6 +141,7 @@ interface StoredScoreBreakdown {
   evaluation_method?: string;
   evaluator_version?: string;
   evaluation_time_ms?: number;
+  evaluation_stage?: 'FIRST' | 'FINAL';
 }
 
 interface StoredSubmission {
@@ -134,10 +174,13 @@ interface StoredScore {
   round_id: string;
   user_id: string;
   stage: 'FIRST' | 'FINAL';
+  semantic_similarity?: number;
   semantic_score: number;
   composition_score: number;
   objects_score: number;
   color_score: number;
+  image_quality_score?: number;
+  fine_details_score?: number;
   details_score: number;
   total_score: number;
   clip_similarity: number;
@@ -332,24 +375,30 @@ function seedSampleSubmissions() {
     started_at: new Date(Date.now() - 3600000).toISOString(),
     submitted_at: new Date(Date.now() - 3000000).toISOString(),
     first_stage_breakdown: {
-      semantic_score: 25.5,
-      composition_score: 16.0,
-      objects_score: 13.0,
-      color_score: 6.5,
-      details_score: 3.2,
-      total_score: 64.2,
+      semantic_similarity: 36.5,
+      semantic_score: 36.5,
+      composition_score: 9.6,
+      objects_score: 8.0,
+      color_score: 5.7,
+      image_quality_score: 3.5,
+      fine_details_score: 1.5,
+      details_score: 1.5,
+      total_score: 64.8,
       clip_similarity: 0.81,
-      evaluation_method: 'CLIP + Computer Vision',
+      evaluation_method: 'CLIP ViT-B/32 + Multi-Signal Vision (Calibrated)',
     },
     final_stage_breakdown: {
-      semantic_score: 30.2,
-      composition_score: 18.5,
-      objects_score: 15.0,
-      color_score: 7.8,
-      details_score: 3.8,
+      semantic_similarity: 42.5,
+      semantic_score: 42.5,
+      composition_score: 11.2,
+      objects_score: 9.4,
+      color_score: 6.6,
+      image_quality_score: 3.8,
+      fine_details_score: 1.8,
+      details_score: 1.8,
       total_score: 75.3,
       clip_similarity: 0.94,
-      evaluation_method: 'CLIP + Computer Vision',
+      evaluation_method: 'CLIP ViT-B/32 + Multi-Signal Vision (Calibrated)',
     },
     total_score: 75.3,
     feedback: 'Exceptional prompt alignment! Highly accurate color palette and holographic atmospheric details.',
@@ -385,14 +434,17 @@ function seedSampleSubmissions() {
     started_at: new Date(Date.now() - 7200000).toISOString(),
     submitted_at: new Date(Date.now() - 6600000).toISOString(),
     final_stage_breakdown: {
-      semantic_score: 28.0,
-      composition_score: 17.0,
-      objects_score: 14.0,
-      color_score: 7.2,
-      details_score: 3.5,
+      semantic_similarity: 39.5,
+      semantic_score: 39.5,
+      composition_score: 10.4,
+      objects_score: 8.7,
+      color_score: 6.1,
+      image_quality_score: 3.6,
+      fine_details_score: 1.4,
+      details_score: 1.4,
       total_score: 69.7,
       clip_similarity: 0.87,
-      evaluation_method: 'CLIP + Computer Vision',
+      evaluation_method: 'CLIP ViT-B/32 + Multi-Signal Vision (Calibrated)',
     },
     total_score: 69.7,
     feedback: 'Strong visual match and mood capture. Composition nicely mirrors the target image.',
@@ -428,14 +480,17 @@ function seedSampleSubmissions() {
     started_at: new Date(Date.now() - 10800000).toISOString(),
     submitted_at: new Date(Date.now() - 10200000).toISOString(),
     final_stage_breakdown: {
-      semantic_score: 26.5,
-      composition_score: 16.5,
-      objects_score: 13.5,
-      color_score: 6.8,
-      details_score: 3.2,
+      semantic_similarity: 37.5,
+      semantic_score: 37.5,
+      composition_score: 10.0,
+      objects_score: 8.3,
+      color_score: 5.9,
+      image_quality_score: 3.5,
+      fine_details_score: 1.3,
+      details_score: 1.3,
       total_score: 66.5,
       clip_similarity: 0.83,
-      evaluation_method: 'CLIP + Computer Vision',
+      evaluation_method: 'CLIP ViT-B/32 + Multi-Signal Vision (Calibrated)',
     },
     total_score: 66.5,
     feedback: 'Good color fidelity and futuristic lighting elements.',
@@ -464,6 +519,8 @@ async function evaluateSubmissionImages(
   candidateImagePathOrUrl: string,
   stage: 'FIRST' | 'FINAL'
 ): Promise<StoredScoreBreakdown> {
+  await ensureDefaultTargetImages();
+
   let targetPath = resolveLocalImagePath(targetImageUrl || '', MEDIA_DIR);
   if (!targetPath || !fs.existsSync(targetPath)) {
     targetPath = path.resolve(MEDIA_DIR, 'rounds/round_cyberpunk.png');
@@ -477,10 +534,13 @@ async function evaluateSubmissionImages(
   const result = await evaluateTargetVsCandidate(targetPath, candidatePath, { stage });
 
   return {
+    semantic_similarity: result.semantic_similarity,
     semantic_score: result.semantic_score,
     composition_score: result.composition_score,
     objects_score: result.objects_score,
     color_score: result.color_score,
+    image_quality_score: result.image_quality_score,
+    fine_details_score: result.fine_details_score,
     details_score: result.details_score,
     total_score: result.total_score,
     clip_similarity: result.clip_similarity,
@@ -488,6 +548,7 @@ async function evaluateSubmissionImages(
     evaluation_method: result.evaluation_method,
     evaluator_version: result.evaluator_version,
     evaluation_time_ms: result.evaluation_time_ms,
+    evaluation_stage: stage,
   };
 }
 
@@ -1329,10 +1390,13 @@ export async function createExpressApp() {
         prompt_2: s.prompt_2,
         submission_status: s.status,
         scoring_status: s.scoring_status || 'scored',
+        semantic_similarity: breakdown.semantic_similarity ?? breakdown.semantic_score,
         semantic_score: breakdown.semantic_score,
         composition_score: breakdown.composition_score,
         objects_score: breakdown.objects_score,
         color_score: breakdown.color_score,
+        image_quality_score: breakdown.image_quality_score ?? 4.0,
+        fine_details_score: breakdown.fine_details_score ?? breakdown.details_score,
         details_score: breakdown.details_score,
         total_score: breakdown.total_score,
         feedback: s.feedback || 'Good attempt!',
@@ -1387,10 +1451,13 @@ export async function createExpressApp() {
         prompt_2: s.prompt_2,
         submission_status: s.status,
         scoring_status: s.scoring_status || 'scored',
+        semantic_similarity: breakdown.semantic_similarity ?? breakdown.semantic_score,
         semantic_score: breakdown.semantic_score,
         composition_score: breakdown.composition_score,
         objects_score: breakdown.objects_score,
         color_score: breakdown.color_score,
+        image_quality_score: breakdown.image_quality_score ?? 4.0,
+        fine_details_score: breakdown.fine_details_score ?? breakdown.details_score,
         details_score: breakdown.details_score,
         total_score: breakdown.total_score,
         feedback: s.feedback || 'Evaluated successfully.',
@@ -1783,10 +1850,13 @@ export async function createExpressApp() {
         submitted_at: s.submitted_at,
         created_at: s.created_at,
         scoring_status: s.scoring_status || 'scored',
+        semantic_similarity: b?.semantic_similarity ?? b?.semantic_score ?? 0,
         semantic_score: b?.semantic_score || 0,
         composition_score: b?.composition_score || 0,
         objects_score: b?.objects_score || 0,
         color_score: b?.color_score || 0,
+        image_quality_score: b?.image_quality_score ?? 4.0,
+        fine_details_score: b?.fine_details_score ?? b?.details_score ?? 0,
         details_score: b?.details_score || 0,
         total_score: s.total_score || b?.total_score || 0,
         clip_similarity: b?.clip_similarity || 0,

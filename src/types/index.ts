@@ -172,10 +172,13 @@ export interface Submission {
 }
 
 export interface ScoreBreakdown {
+  semantic_similarity?: number;
   semantic_score?: number;
   composition_score?: number;
   objects_score?: number;
   color_score?: number;
+  image_quality_score?: number;
+  fine_details_score?: number;
   details_score?: number;
   total_score?: number;
   clip_similarity?: number;
@@ -183,6 +186,7 @@ export interface ScoreBreakdown {
   evaluation_method?: string;
   evaluator_version?: string;
   evaluation_time_ms?: number;
+  evaluation_stage?: 'FIRST' | 'FINAL';
 }
 
 export interface AdminSubmission {
@@ -202,10 +206,13 @@ export interface AdminSubmission {
   submitted_at: string | null;
   created_at: string;
   scoring_status?: string | null;
+  semantic_similarity?: number | null;
   semantic_score?: number | null;
   composition_score?: number | null;
   objects_score?: number | null;
   color_score?: number | null;
+  image_quality_score?: number | null;
+  fine_details_score?: number | null;
   details_score?: number | null;
   total_score?: number | null;
   clip_similarity?: number | null;
@@ -293,10 +300,13 @@ export interface Score {
   submission_id: string;
   round_id: string;
   user_id: string;
+  semantic_similarity?: number;
   semantic_score: number;
   composition_score: number;
   objects_score: number;
   color_score: number;
+  image_quality_score?: number;
+  fine_details_score?: number;
   details_score: number;
   total_score: number;
   status: string;
@@ -322,10 +332,13 @@ export interface ResultItem {
   prompt_2?: string;
   submission_status: string;
   scoring_status: string;
+  semantic_similarity?: number;
   semantic_score: number;
   composition_score: number;
   objects_score: number;
   color_score: number;
+  image_quality_score?: number;
+  fine_details_score?: number;
   details_score: number;
   total_score: number;
   feedback: string | null;

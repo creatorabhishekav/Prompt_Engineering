@@ -637,12 +637,13 @@ export function ChallengePage() {
                         </div>
                         {challenge.first_score_breakdown && (
                           <>
-                            <div className="grid grid-cols-5 gap-1 pt-2 border-t border-brand-200 text-center text-[10px]">
-                              <div><span className="text-slate-400 block">Sem</span><strong className="text-slate-700">{challenge.first_score_breakdown.semantic_score}/32</strong></div>
-                              <div><span className="text-slate-400 block">Comp</span><strong className="text-slate-700">{challenge.first_score_breakdown.composition_score}/20</strong></div>
-                              <div><span className="text-slate-400 block">Obj</span><strong className="text-slate-700">{challenge.first_score_breakdown.objects_score}/16</strong></div>
-                              <div><span className="text-slate-400 block">Col</span><strong className="text-slate-700">{challenge.first_score_breakdown.color_score}/8</strong></div>
-                              <div><span className="text-slate-400 block">Det</span><strong className="text-slate-700">{challenge.first_score_breakdown.details_score}/4</strong></div>
+                            <div className="grid grid-cols-6 gap-1 pt-2 border-t border-brand-200 text-center text-[10px]">
+                              <div><span className="text-slate-400 block">Sim</span><strong className="text-slate-700">{challenge.first_score_breakdown.semantic_similarity ?? challenge.first_score_breakdown.semantic_score}/45</strong></div>
+                              <div><span className="text-slate-400 block">Comp</span><strong className="text-slate-700">{challenge.first_score_breakdown.composition_score}/12</strong></div>
+                              <div><span className="text-slate-400 block">Obj</span><strong className="text-slate-700">{challenge.first_score_breakdown.objects_score}/10</strong></div>
+                              <div><span className="text-slate-400 block">Col</span><strong className="text-slate-700">{challenge.first_score_breakdown.color_score}/7</strong></div>
+                              <div><span className="text-slate-400 block">Qual</span><strong className="text-slate-700">{challenge.first_score_breakdown.image_quality_score ?? 0}/4</strong></div>
+                              <div><span className="text-slate-400 block">Det</span><strong className="text-slate-700">{challenge.first_score_breakdown.fine_details_score ?? challenge.first_score_breakdown.details_score}/2</strong></div>
                             </div>
                             <div className="flex items-center justify-between pt-1 text-[10px] text-brand-600">
                               <span>Model: {challenge.first_score_breakdown.evaluation_method || 'CLIP ViT-B/32'}</span>
@@ -811,12 +812,13 @@ export function ChallengePage() {
                       </div>
                       {challenge.final_score_breakdown && (
                         <>
-                          <div className="grid grid-cols-5 gap-1 pt-2 border-t border-emerald-200 text-center text-[10px]">
-                            <div><span className="text-slate-500 block">Sem</span><strong className="text-slate-800">{challenge.final_score_breakdown.semantic_score}/32</strong></div>
-                            <div><span className="text-slate-500 block">Comp</span><strong className="text-slate-800">{challenge.final_score_breakdown.composition_score}/20</strong></div>
-                            <div><span className="text-slate-500 block">Obj</span><strong className="text-slate-800">{challenge.final_score_breakdown.objects_score}/16</strong></div>
-                            <div><span className="text-slate-500 block">Col</span><strong className="text-slate-800">{challenge.final_score_breakdown.color_score}/8</strong></div>
-                            <div><span className="text-slate-500 block">Det</span><strong className="text-slate-800">{challenge.final_score_breakdown.details_score}/4</strong></div>
+                          <div className="grid grid-cols-6 gap-1 pt-2 border-t border-emerald-200 text-center text-[10px]">
+                            <div><span className="text-slate-500 block">Sim</span><strong className="text-slate-800">{challenge.final_score_breakdown.semantic_similarity ?? challenge.final_score_breakdown.semantic_score}/45</strong></div>
+                            <div><span className="text-slate-500 block">Comp</span><strong className="text-slate-800">{challenge.final_score_breakdown.composition_score}/12</strong></div>
+                            <div><span className="text-slate-500 block">Obj</span><strong className="text-slate-800">{challenge.final_score_breakdown.objects_score}/10</strong></div>
+                            <div><span className="text-slate-500 block">Col</span><strong className="text-slate-800">{challenge.final_score_breakdown.color_score}/7</strong></div>
+                            <div><span className="text-slate-500 block">Qual</span><strong className="text-slate-800">{challenge.final_score_breakdown.image_quality_score ?? 0}/4</strong></div>
+                            <div><span className="text-slate-500 block">Det</span><strong className="text-slate-800">{challenge.final_score_breakdown.fine_details_score ?? challenge.final_score_breakdown.details_score}/2</strong></div>
                           </div>
                           <div className="flex items-center justify-between pt-1 text-[10px] text-emerald-700">
                             <span>Model: {challenge.final_score_breakdown.evaluation_method || 'CLIP ViT-B/32'}</span>

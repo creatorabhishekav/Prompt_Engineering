@@ -108,6 +108,12 @@ async function runGeminiChatLinkTests() {
   // TEST 1 & 2: Upload First Image & ML score WITHOUT Gemini link
   console.log('   Uploading First Image without Gemini link...');
   const sampleImagePath = path.resolve('tests/fixtures/target.png');
+  if (!fs.existsSync(sampleImagePath)) {
+    fs.mkdirSync(path.dirname(sampleImagePath), { recursive: true });
+    const dummySvg = Buffer.from('<svg width="200" height="200" xmlns="http://www.w3.org/2000/svg"><rect width="200" height="200" fill="#00ffff"/></svg>');
+    const sharp = (await import('sharp')).default;
+    await sharp(dummySvg).png().toFile(sampleImagePath);
+  }
   const imageBuffer = fs.readFileSync(sampleImagePath);
 
   const firstFormData = new FormData();

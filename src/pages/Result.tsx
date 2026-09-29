@@ -115,11 +115,12 @@ export function ResultPage() {
 
         {results.map((res) => {
           const categories: MetricCategory[] = [
-            { key: 'semantic', label: 'Semantic / Overall Similarity', score: res.semantic_score, max: 32, color: 'from-brand-500 to-indigo-600' },
-            { key: 'composition', label: 'Composition / Layout', score: res.composition_score, max: 20, color: 'from-blue-500 to-cyan-500' },
-            { key: 'objects', label: 'Objects / Attributes', score: res.objects_score, max: 16, color: 'from-emerald-500 to-teal-500' },
-            { key: 'color', label: 'Color / Lighting', score: res.color_score, max: 8, color: 'from-amber-500 to-orange-500' },
-            { key: 'details', label: 'Fine Details', score: res.details_score, max: 4, color: 'from-purple-500 to-pink-500' },
+            { key: 'semantic', label: 'Overall Visual Similarity', score: res.semantic_similarity ?? res.semantic_score, max: 45, color: 'from-brand-500 to-indigo-600' },
+            { key: 'composition', label: 'Composition & Layout', score: res.composition_score, max: 12, color: 'from-blue-500 to-cyan-500' },
+            { key: 'objects', label: 'Objects & Attributes', score: res.objects_score, max: 10, color: 'from-emerald-500 to-teal-500' },
+            { key: 'color', label: 'Color & Lighting', score: res.color_score, max: 7, color: 'from-amber-500 to-orange-500' },
+            { key: 'quality', label: 'Image Quality', score: res.image_quality_score ?? 0, max: 4, color: 'from-rose-500 to-pink-500' },
+            { key: 'details', label: 'Fine Details', score: res.fine_details_score ?? res.details_score, max: 2, color: 'from-purple-500 to-indigo-500' },
           ];
 
           return (
