@@ -26,7 +26,6 @@ import { Card, CardBody, CardFooter, CardHeader, CardTitle } from '@/components/
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { Loading } from '@/components/ui/Loading';
-import { AiModeBadge } from '@/components/AiModeBadge';
 import { adminApi, getApiErrorMessage, resolveMediaUrl } from '@/lib/api';
 import type {
   AdminSubmission,
@@ -300,21 +299,20 @@ export function AdminDashboardPage() {
   return (
     <PageTransition>
       <div className="space-y-8">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <div className="mb-1 flex items-center gap-2 text-sm font-semibold text-accent-600">
-              <ShieldCheck className="h-4 w-4" />
-              Admin
+            <div className="mb-1 flex items-center gap-2 text-xs font-semibold text-slate-500">
+              <ShieldCheck className="h-3.5 w-3.5 text-brand-600" />
+              <span>Administrative Console</span>
             </div>
-            <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">Admin Dashboard</h1>
-            <p className="mt-1 text-slate-500">Run competitions, rounds and monitor submissions.</p>
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">Admin Dashboard</h1>
+            <p className="mt-1 text-xs sm:text-sm text-slate-500">Manage competitions, configure round assets, and monitor participant submissions.</p>
           </div>
           <div className="flex items-center gap-3">
             <Button variant="outline" size="sm" onClick={() => void refresh()} disabled={loading}>
-              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
               Refresh
             </Button>
-            <AiModeBadge />
           </div>
         </div>
 
@@ -326,21 +324,21 @@ export function AdminDashboardPage() {
         )}
 
         {/* Stats */}
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[
-            { label: 'Participants', value: stats?.participants ?? 0, icon: <Users className="h-5 w-5" />, tint: 'bg-brand-50 text-brand-600' },
-            { label: 'Competitions', value: stats?.competitions ?? 0, icon: <Trophy className="h-5 w-5" />, tint: 'bg-accent-50 text-accent-600' },
-            { label: 'Rounds', value: stats?.rounds ?? 0, icon: <Layers className="h-5 w-5" />, tint: 'bg-emerald-50 text-emerald-600' },
-            { label: 'Submissions', value: stats?.submissions ?? 0, icon: <CalendarPlus className="h-5 w-5" />, tint: 'bg-amber-50 text-amber-600' },
+            { label: 'Registered Participants', value: stats?.participants ?? 0, icon: <Users className="h-4 w-4 text-slate-600" /> },
+            { label: 'Competitions', value: stats?.competitions ?? 0, icon: <Trophy className="h-4 w-4 text-slate-600" /> },
+            { label: 'Active & Ended Rounds', value: stats?.rounds ?? 0, icon: <Layers className="h-4 w-4 text-slate-600" /> },
+            { label: 'Completed Submissions', value: stats?.submissions ?? 0, icon: <CalendarPlus className="h-4 w-4 text-slate-600" /> },
           ].map((stat, i) => (
-            <motion.div key={stat.label} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
-              <Card hover>
-                <CardBody>
-                  <div className={`mb-3 inline-flex h-10 w-10 items-center justify-center rounded-xl ${stat.tint}`}>{stat.icon}</div>
-                  <p className="text-3xl font-extrabold text-slate-900">{stat.value}</p>
-                  <p className="text-sm text-slate-500">{stat.label}</p>
-                </CardBody>
-              </Card>
+            <motion.div key={stat.label} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}>
+              <div className="rounded-xl border border-slate-200/80 bg-white p-5 shadow-sm">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-xs font-medium text-slate-500">{stat.label}</span>
+                  <div>{stat.icon}</div>
+                </div>
+                <p className="font-mono text-3xl font-bold tracking-tight text-slate-900 tabular-nums">{stat.value}</p>
+              </div>
             </motion.div>
           ))}
         </div>

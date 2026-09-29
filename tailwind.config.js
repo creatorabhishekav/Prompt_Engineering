@@ -32,7 +32,7 @@ export default {
       },
       fontFamily: {
         sans: [
-          'Inter',
+          '"Plus Jakarta Sans"',
           'ui-sans-serif',
           'system-ui',
           '-apple-system',
@@ -41,6 +41,15 @@ export default {
           'Helvetica Neue',
           'Arial',
           'sans-serif',
+        ],
+        mono: [
+          '"JetBrains Mono"',
+          'ui-monospace',
+          'SFMono-Regular',
+          'Menlo',
+          'Monaco',
+          'Consolas',
+          'monospace',
         ],
       },
       boxShadow: {

@@ -18,10 +18,10 @@
   }
 
   body {
-    @apply min-h-screen bg-slate-50 text-slate-900 font-sans;
+    @apply min-h-screen bg-[#f8fafc] text-slate-900 font-sans;
     background-image: radial-gradient(
-        ellipse 80% 50% at 50% -20%,
-        rgb(99 102 241 / 0.08),
+        ellipse 100% 40% at 50% -10%,
+        rgb(99 102 241 / 0.04),
         transparent
       );
     background-attachment: fixed;

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Image as ImageIcon, Shield } from 'lucide-react';
+import { Shield } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { getApiErrorMessage } from '@/lib/api';
 import { PageTransition } from '@/components/PageTransition';
@@ -48,17 +48,17 @@ export function RegisterPage() {
       <div className="mx-auto flex min-h-[70vh] max-w-md flex-col justify-center py-8">
         <div className="mb-8 text-center">
           <motion.div
-            initial={{ scale: 0.8, opacity: 0 }}
+            initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-600 to-accent-600 text-white shadow-glow"
+            className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-slate-900 text-white font-black text-sm tracking-wider"
           >
-            <ImageIcon className="h-7 w-7" />
+            RP
           </motion.div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-            PROMPT ENGINEERING
+            Create Participant Account
           </h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Reverse Prompt Engineering Challenge
+          <p className="mt-1 text-xs text-slate-500">
+            Prompt Arena Reverse Prompt Competition
           </p>
         </div>
 

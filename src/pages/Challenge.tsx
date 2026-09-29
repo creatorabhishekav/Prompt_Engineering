@@ -24,20 +24,6 @@ import { useAuth } from '@/context/AuthContext';
 import { ProtectedTargetImage } from '@/components/ProtectedTargetImage';
 import type { ActiveRound, ChallengeStatus } from '@/types';
 
-function statusColor(status: string): string {
-  switch (status) {
-    case 'in_progress':
-      return 'bg-brand-100 text-brand-700';
-    case 'submitted':
-    case 'scored':
-      return 'bg-emerald-100 text-emerald-700';
-    case 'rejected':
-      return 'bg-rose-100 text-rose-700';
-    default:
-      return 'bg-slate-100 text-slate-600';
-  }
-}
-
 type Phase = 'loading' | 'lobby' | 'playing' | 'locked' | 'error' | 'empty';
 
 export function ChallengePage() {
@@ -473,12 +459,13 @@ export function ChallengePage() {
                 Round {activeRound?.round_number}: {activeRound?.title}
               </h2>
             </div>
-            <div className="flex items-center gap-2">
-              <span className={`rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wider ${statusColor(challenge?.status ?? '')}`}>
-                {challenge?.status?.replace('_', ' ') ?? ''}
-              </span>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 text-xs font-semibold text-slate-700">
+                <span className={`h-2 w-2 rounded-full ${challenge?.status === 'in_progress' ? 'bg-amber-500' : 'bg-emerald-500'}`} />
+                <span className="capitalize">{challenge?.status?.replace('_', ' ') ?? ''}</span>
+              </div>
               {phase === 'locked' && (
-                <span className="flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">
+                <span className="flex items-center gap-1 text-xs font-medium text-slate-500">
                   <Lock className="h-3.5 w-3.5" /> Locked
                 </span>
               )}
@@ -489,23 +476,33 @@ export function ChallengePage() {
         {error && <ErrorBanner message={error} />}
 
         {/* Gemini & Challenge Instructions Banner */}
-        <div className="rounded-2xl border border-brand-200 bg-gradient-to-r from-brand-50 to-indigo-50 p-4 sm:p-5">
+        <div className="rounded-xl border border-slate-200/80 bg-white p-4 sm:p-5 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="space-y-1">
-              <h3 className="font-bold text-brand-900">
-                Reverse Prompt Engineering: Two-Stage Competition Flow
+              <h3 className="text-sm font-bold text-slate-900">
+                Two-Stage Iterative Prompt Engineering
               </h3>
-              <p className="text-sm text-brand-700">
-                Submit Prompt 1 $\rightarrow$ Upload First Image $\rightarrow$ See Practice Score (/80) $\rightarrow$ Submit Follow-up Prompt 2 $\rightarrow$ Upload Final Image $\rightarrow$ Final Leaderboard Score (/80).
+              <p className="text-xs text-slate-500 flex flex-wrap items-center gap-1.5">
+                <span>Prompt 1</span>
+                <span>→</span>
+                <span>First Image</span>
+                <span>→</span>
+                <span>Practice Score (/80)</span>
+                <span>→</span>
+                <span>Prompt 2</span>
+                <span>→</span>
+                <span>Final Image</span>
+                <span>→</span>
+                <span className="font-semibold text-slate-700">Leaderboard (/80)</span>
               </p>
             </div>
             <a
               href="https://gemini.google.com"
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center gap-1.5 rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-brand-700"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-slate-800 transition-colors"
             >
-              Open Gemini <ExternalLink className="h-4 w-4" />
+              Open Gemini <ExternalLink className="h-3.5 w-3.5" />
             </a>
           </div>
         </div>
@@ -517,10 +514,10 @@ export function ChallengePage() {
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
                 <span className="flex items-center gap-2">
-                  <ImageIcon className="h-5 w-5 text-brand-600" />
+                  <ImageIcon className="h-4 w-4 text-brand-600" />
                   Target Image
                 </span>
-                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
+                <span className="text-[11px] font-medium text-slate-400">
                   Protected Content
                 </span>
               </CardTitle>
@@ -543,16 +540,16 @@ export function ChallengePage() {
           {/* STAGE 1: FIRST ATTEMPT */}
           <div className="space-y-6">
             {/* STEP 1 — FIRST PROMPT */}
-            <Card className={p1Submitted ? 'border-emerald-200 bg-emerald-50/20' : ''}>
+            <Card className={p1Submitted ? 'border-emerald-200 bg-emerald-50/10' : ''}>
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
                   <span className="flex items-center gap-2">
-                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-600 text-xs font-bold text-white">1</span>
-                    STEP 1 — FIRST PROMPT
+                    <span className="flex h-5 w-5 items-center justify-center rounded-md bg-slate-900 text-[11px] font-bold text-white">1</span>
+                    Step 1: First Prompt
                   </span>
                   {p1Submitted && (
-                    <span className="flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-100 px-2.5 py-1 rounded-full">
-                      <CheckCircle2 className="h-3.5 w-3.5" /> Prompt 1 Submitted & Locked
+                    <span className="flex items-center gap-1 text-xs font-semibold text-emerald-700">
+                      <CheckCircle2 className="h-3.5 w-3.5" /> Submitted
                     </span>
                   )}
                 </CardTitle>
@@ -584,15 +581,15 @@ export function ChallengePage() {
             </Card>
 
             {/* FIRST GENERATED IMAGE & STAGE 1 ML EVALUATION */}
-            <Card className={firstScoreDone ? 'border-emerald-200 bg-emerald-50/20' : ''}>
+            <Card className={firstScoreDone ? 'border-emerald-200 bg-emerald-50/10' : ''}>
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
                   <span className="flex items-center gap-2">
-                    <Upload className="h-5 w-5 text-brand-600" />
-                    FIRST GENERATED IMAGE
+                    <Upload className="h-4 w-4 text-brand-600" />
+                    First Generated Image
                   </span>
                   {firstScoreDone && (
-                    <span className="flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-100 px-2.5 py-1 rounded-full">
+                    <span className="flex items-center gap-1 text-xs font-semibold text-emerald-700">
                       <CheckCircle2 className="h-3.5 w-3.5" /> Stage 1 Evaluated
                     </span>
                   )}
@@ -604,9 +601,9 @@ export function ChallengePage() {
                 </p>
 
                 {uploadingFirst && (
-                  <div className="flex flex-col items-center justify-center py-6 gap-2 rounded-xl bg-brand-50/50 border border-brand-100">
-                    <Loader2 className="h-8 w-8 animate-spin text-brand-600" />
-                    <p className="text-xs font-semibold text-brand-800">Evaluating image...</p>
+                  <div className="flex flex-col items-center justify-center py-6 gap-2 rounded-xl bg-slate-50 border border-slate-200">
+                    <Loader2 className="h-6 w-6 animate-spin text-slate-600" />
+                    <p className="text-xs font-semibold text-slate-800">Evaluating image...</p>
                     <p className="text-[11px] text-slate-500">Calculating semantic, composition, objects, color, and detail scores.</p>
                   </div>
                 )}
@@ -619,20 +616,20 @@ export function ChallengePage() {
                         alt="First attempt generated image"
                         className="h-full w-full object-cover"
                       />
-                      <div className="absolute top-2 right-2 rounded-full bg-brand-600 px-2.5 py-1 text-xs font-bold text-white shadow">
-                        First Image
+                      <div className="absolute top-2 right-2 rounded bg-slate-900/80 px-2 py-0.5 text-[10px] font-bold text-white backdrop-blur-sm">
+                        Attempt 1
                       </div>
                     </div>
 
                     {firstScoreDone && (
-                      <div className="rounded-xl border border-brand-200 bg-brand-50 p-4 space-y-2">
+                      <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-2">
                         <div className="flex items-center justify-between">
                           <div>
-                            <p className="text-[11px] font-bold uppercase tracking-wider text-brand-700">Practice / Intermediate Score</p>
-                            <p className="text-xs text-slate-500">Intermediate score — not on leaderboard</p>
+                            <p className="text-xs font-bold text-slate-800">Practice Score</p>
+                            <p className="text-[11px] text-slate-500">Intermediate guidance · not on leaderboard</p>
                           </div>
-                          <div className="text-2xl font-black text-brand-900">
-                            {challenge.first_score} <span className="text-xs text-brand-600 font-bold">/ 80</span>
+                          <div className="font-mono text-2xl font-black text-slate-900 tabular-nums">
+                            {challenge.first_score} <span className="text-xs text-slate-400 font-bold">/ 80</span>
                           </div>
                         </div>
                         {challenge.first_score_breakdown && (
@@ -722,16 +719,16 @@ export function ChallengePage() {
         {/* STAGE 2: FINAL ATTEMPT (ALWAYS DISTINCT AND SEPARATE) */}
         <div className="grid gap-6 lg:grid-cols-2 pt-6 border-t border-slate-200">
           {/* STEP 2 — FOLLOW-UP PROMPT */}
-          <Card className={!p2Unlocked ? 'opacity-60 pointer-events-none' : p2Submitted ? 'border-emerald-200 bg-emerald-50/20' : ''}>
+          <Card className={!p2Unlocked ? 'opacity-60 pointer-events-none' : p2Submitted ? 'border-emerald-200 bg-emerald-50/10' : ''}>
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
                 <span className="flex items-center gap-2">
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-600 text-xs font-bold text-white">2</span>
-                  STEP 2 — FOLLOW-UP PROMPT
+                  <span className="flex h-5 w-5 items-center justify-center rounded-md bg-slate-900 text-[11px] font-bold text-white">2</span>
+                  Step 2: Follow-up Prompt
                 </span>
                 {p2Submitted && (
-                  <span className="flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-100 px-2.5 py-1 rounded-full">
-                    <CheckCircle2 className="h-3.5 w-3.5" /> Prompt 2 Submitted & Locked
+                  <span className="flex items-center gap-1 text-xs font-semibold text-emerald-700">
+                    <CheckCircle2 className="h-3.5 w-3.5" /> Submitted
                   </span>
                 )}
               </CardTitle>
@@ -769,45 +766,45 @@ export function ChallengePage() {
           <Card className={!p2Unlocked ? 'opacity-60' : ''}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Upload className="h-5 w-5 text-brand-600" />
-                FINAL GENERATED IMAGE
+                <Upload className="h-4 w-4 text-brand-600" />
+                Final Generated Image
               </CardTitle>
             </CardHeader>
             <CardBody className="space-y-4">
               <p className="text-xs text-slate-500">
-                Upload the NEW image generated from Prompt 2. This image gets evaluated for your Official Leaderboard Score.
+                Upload the new image generated from Prompt 2. This image gets evaluated for your Official Leaderboard Score.
               </p>
 
               {uploadingFinal && (
-                <div className="flex flex-col items-center justify-center py-6 gap-2 rounded-xl bg-indigo-50/50 border border-indigo-100">
-                  <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
-                  <p className="text-xs font-semibold text-indigo-900">Evaluating image...</p>
+                <div className="flex flex-col items-center justify-center py-6 gap-2 rounded-xl bg-slate-50 border border-slate-200">
+                  <Loader2 className="h-6 w-6 animate-spin text-slate-600" />
+                  <p className="text-xs font-semibold text-slate-800">Evaluating final submission...</p>
                   <p className="text-[11px] text-slate-500">Calculating official competition score out of 80 points.</p>
                 </div>
               )}
 
               {!uploadingFinal && finalImageUploaded ? (
                 <div className="space-y-3">
-                  <div className="relative aspect-square w-full overflow-hidden rounded-xl border border-emerald-200 bg-emerald-50">
+                  <div className="relative aspect-square w-full overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
                     <img
                       src={resolveMediaUrl(challenge?.final_image_url) || undefined}
                       alt="Your uploaded final generated image"
                       className="h-full w-full object-cover"
                     />
-                    <div className="absolute top-2 right-2 rounded-full bg-emerald-600 px-2.5 py-1 text-xs font-bold text-white shadow">
-                      Final Image
+                    <div className="absolute top-2 right-2 rounded bg-slate-900/80 px-2 py-0.5 text-[10px] font-bold text-white backdrop-blur-sm">
+                      Final Submission
                     </div>
                   </div>
 
                   {finalScoreDone && (
-                    <div className="rounded-xl border border-emerald-300 bg-emerald-50 p-4 space-y-2">
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-2">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-800">Official Leaderboard Score</p>
-                          <p className="text-xs text-emerald-600 font-medium">Used for leaderboard ranking</p>
+                          <p className="text-xs font-bold text-slate-800">Official Leaderboard Score</p>
+                          <p className="text-[11px] text-slate-500">Recorded on competition leaderboard</p>
                         </div>
-                        <div className="text-2xl font-black text-emerald-900">
-                          {challenge.final_score} <span className="text-xs text-emerald-700 font-bold">/ 80</span>
+                        <div className="font-mono text-2xl font-black text-slate-900 tabular-nums">
+                          {challenge.final_score} <span className="text-xs text-slate-400 font-bold">/ 80</span>
                         </div>
                       </div>
                       {challenge.final_score_breakdown && (
@@ -945,8 +942,8 @@ function Header() {
   return (
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div>
-        <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">PROMPT ENGINEERING</h1>
-        <p className="mt-1 text-slate-500">Reverse Prompt Engineering Challenge</p>
+        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">Active Challenge</h1>
+        <p className="mt-1 text-xs sm:text-sm text-slate-500">Reverse Prompt Engineering Arena — Two-Stage Iterative Prompting</p>
       </div>
     </div>
   );

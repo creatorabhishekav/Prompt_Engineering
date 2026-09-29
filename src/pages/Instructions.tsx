@@ -1,7 +1,6 @@
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
-  BookOpen,
   Brain,
   Download,
   ExternalLink,
@@ -47,29 +46,29 @@ export function InstructionsPage() {
     <PageTransition>
       <div className="space-y-12">
         {/* Hero */}
-        <section className="rounded-3xl border border-brand-100 bg-gradient-to-br from-brand-50 via-white to-accent-50 px-6 py-12 sm:px-12 sm:py-14">
+        <section className="rounded-2xl border border-slate-200/80 bg-white p-8 sm:p-12 shadow-sm">
           <motion.div
-            initial={{ opacity: 0, y: 16 }}
+            initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4 }}
-            className="max-w-3xl"
+            transition={{ duration: 0.3 }}
+            className="max-w-3xl space-y-4"
           >
-            <div className="mb-4 flex flex-wrap items-center gap-3">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-100 px-3 py-1 text-xs font-semibold text-brand-700">
-                <Brain className="h-3.5 w-3.5" />
-                PROMPT ENGINEERING
-              </span>
-              <span className="rounded-full bg-accent-100 px-3 py-1 text-xs font-semibold text-accent-700">
-                Reverse Prompt Engineering Challenge
-              </span>
+            {/* Zero-Pill Unboxed Metadata */}
+            <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-slate-500">
+              <span className="text-slate-900 font-semibold">Competition Arena</span>
+              <span aria-hidden="true">·</span>
+              <span>15 Minutes Per Round</span>
+              <span aria-hidden="true">·</span>
+              <span>80 Marks Automated Vision Evaluation</span>
             </div>
-            <h1 className="text-balance text-4xl font-extrabold tracking-tight text-slate-900 sm:text-5xl">
-              Can you match <span className="gradient-text">that image</span>?
+
+            <h1 className="text-balance text-3xl font-extrabold tracking-tight text-slate-900 sm:text-5xl">
+              Can you reverse-engineer the <span className="text-brand-600">target image</span>?
             </h1>
-            <p className="mt-4 text-lg leading-relaxed text-slate-600">
-              You are shown an AI-generated image. Your goal is to write a prompt, generate the image using your <strong>own Gemini account</strong>, upload it, and get evaluated automatically out of 80 points.
+            <p className="text-base sm:text-lg leading-relaxed text-slate-600">
+              Inspect the reference artwork, craft an effective descriptive prompt, generate the image using your <strong>own Google Gemini account</strong>, and submit. The neural vision evaluator scores your attempt automatically out of 80 points.
             </p>
-            <div className="mt-8 flex flex-wrap gap-3">
+            <div className="pt-4 flex flex-wrap items-center gap-3">
               <Link to="/challenge">
                 <Button size="lg">
                   <Trophy className="h-4 w-4" /> Start Challenge
@@ -85,32 +84,37 @@ export function InstructionsPage() {
         </section>
 
         {/* 10-Step Workflow */}
-        <section>
-          <div className="mb-6 flex items-center gap-2.5">
-            <BookOpen className="h-5 w-5 text-brand-600" />
-            <h2 className="text-2xl font-bold tracking-tight text-slate-900">
+        <section className="space-y-6">
+          <div>
+            <h2 className="text-xl font-bold tracking-tight text-slate-900">
               Competition Workflow
             </h2>
+            <p className="mt-1 text-xs text-slate-500">
+              Follow the two-stage iterative prompt refinement process.
+            </p>
           </div>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-5">
             {steps.map((step, i) => (
               <motion.div
                 key={step.title}
-                initial={{ opacity: 0, y: 16 }}
+                initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.04 }}
+                transition={{ delay: i * 0.03 }}
               >
-                <Card hover className="h-full">
-                  <CardBody className="flex h-full flex-col justify-between p-4">
-                    <div className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 text-brand-600 ring-1 ring-brand-100">
-                      {step.icon}
+                <div className="h-full rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm hover:border-slate-300 transition-colors flex flex-col justify-between">
+                  <div>
+                    <div className="mb-3 flex items-center justify-between">
+                      <span className="font-mono text-xs font-bold text-slate-400">
+                        {String(i + 1).padStart(2, '0')}
+                      </span>
+                      <div className="text-slate-600">
+                        {step.icon}
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="text-sm font-bold text-slate-900">{step.title}</h3>
-                      <p className="mt-1 text-xs text-slate-500 leading-relaxed">{step.description}</p>
-                    </div>
-                  </CardBody>
-                </Card>
+                    <h3 className="text-xs font-bold text-slate-900">{step.title.replace(/^\d+\.\s*/, '')}</h3>
+                    <p className="mt-1 text-[11px] text-slate-500 leading-relaxed">{step.description}</p>
+                  </div>
+                </div>
               </motion.div>
             ))}
           </div>
@@ -119,18 +123,18 @@ export function InstructionsPage() {
         {/* Rules & Score Breakdown */}
         <section className="grid gap-6 lg:grid-cols-2">
           <Card>
-            <CardBody>
-              <div className="mb-4 flex items-center gap-2.5">
-                <Lightbulb className="h-5 w-5 text-amber-500" />
-                <h3 className="text-lg font-semibold text-slate-900">
+            <CardBody className="p-6">
+              <div className="mb-4 flex items-center gap-2">
+                <Lightbulb className="h-4 w-4 text-amber-500" />
+                <h3 className="text-base font-bold text-slate-900">
                   Rules & Guidelines
                 </h3>
               </div>
               <ul className="space-y-3">
                 {rules.map((rule) => (
-                  <li key={rule} className="flex items-start gap-2.5 text-sm text-slate-600">
-                    <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500" />
-                    {rule}
+                  <li key={rule} className="flex items-start gap-2.5 text-xs sm:text-sm text-slate-600">
+                    <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-slate-400" />
+                    <span>{rule}</span>
                   </li>
                 ))}
               </ul>
@@ -138,38 +142,66 @@ export function InstructionsPage() {
           </Card>
 
           <Card>
-            <CardBody>
-              <div className="mb-4 flex items-center gap-2.5">
-                <Rocket className="h-5 w-5 text-brand-600" />
-                <h3 className="text-lg font-semibold text-slate-900">
-                  Automated AI Score /80 Breakdown
-                </h3>
+            <CardBody className="p-6">
+              <div className="mb-4 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Rocket className="h-4 w-4 text-brand-600" />
+                  <h3 className="text-base font-bold text-slate-900">
+                    Official Scoring Breakdown
+                  </h3>
+                </div>
+                <span className="font-mono text-xs font-bold text-slate-500">80 pts max</span>
               </div>
-              <div className="space-y-2.5 text-sm text-slate-700">
-                <div className="flex justify-between rounded-lg bg-slate-50 px-3 py-2">
-                  <span>Semantic / Overall Similarity</span>
-                  <span className="font-bold text-brand-600">32 marks</span>
+              <div className="space-y-2 text-xs sm:text-sm text-slate-700">
+                <div className="flex justify-between items-center rounded-lg bg-slate-50 px-3.5 py-2.5 border border-slate-100">
+                  <div>
+                    <span className="font-medium text-slate-800 block">Overall Visual Similarity</span>
+                    <span className="text-[11px] text-slate-400">CLIP ViT-B/32 + Perceptual SSIM</span>
+                  </div>
+                  <span className="font-mono font-bold text-slate-900">45 marks</span>
                 </div>
-                <div className="flex justify-between rounded-lg bg-slate-50 px-3 py-2">
-                  <span>Composition / Layout</span>
-                  <span className="font-bold text-blue-600">20 marks</span>
+                <div className="flex justify-between items-center rounded-lg bg-slate-50 px-3.5 py-2.5 border border-slate-100">
+                  <div>
+                    <span className="font-medium text-slate-800 block">Composition & Layout</span>
+                    <span className="text-[11px] text-slate-400">Framing, spatial balance & aspect ratio</span>
+                  </div>
+                  <span className="font-mono font-bold text-slate-900">12 marks</span>
                 </div>
-                <div className="flex justify-between rounded-lg bg-slate-50 px-3 py-2">
-                  <span>Objects / Attributes</span>
-                  <span className="font-bold text-emerald-600">16 marks</span>
+                <div className="flex justify-between items-center rounded-lg bg-slate-50 px-3.5 py-2.5 border border-slate-100">
+                  <div>
+                    <span className="font-medium text-slate-800 block">Objects & Attributes</span>
+                    <span className="text-[11px] text-slate-400">Salient regions & structural patterns</span>
+                  </div>
+                  <span className="font-mono font-bold text-slate-900">10 marks</span>
                 </div>
-                <div className="flex justify-between rounded-lg bg-slate-50 px-3 py-2">
-                  <span>Color / Lighting</span>
-                  <span className="font-bold text-amber-600">8 marks</span>
+                <div className="flex justify-between items-center rounded-lg bg-slate-50 px-3.5 py-2.5 border border-slate-100">
+                  <div>
+                    <span className="font-medium text-slate-800 block">Color & Lighting</span>
+                    <span className="text-[11px] text-slate-400">Hue distribution & contrast harmony</span>
+                  </div>
+                  <span className="font-mono font-bold text-slate-900">7 marks</span>
                 </div>
-                <div className="flex justify-between rounded-lg bg-slate-50 px-3 py-2">
-                  <span>Fine Details</span>
-                  <span className="font-bold text-purple-600">4 marks</span>
+                <div className="flex justify-between items-center rounded-lg bg-slate-50 px-3.5 py-2.5 border border-slate-100">
+                  <div>
+                    <span className="font-medium text-slate-800 block">Image Quality</span>
+                    <span className="text-[11px] text-slate-400">Sharpness, dynamic range & clarity</span>
+                  </div>
+                  <span className="font-mono font-bold text-slate-900">4 marks</span>
                 </div>
-                <div className="flex justify-between rounded-xl bg-brand-600 px-4 py-3 font-bold text-white shadow-sm mt-3">
-                  <span>Total Website AI Score</span>
-                  <span>80 marks</span>
+                <div className="flex justify-between items-center rounded-lg bg-slate-50 px-3.5 py-2.5 border border-slate-100">
+                  <div>
+                    <span className="font-medium text-slate-800 block">Fine Details</span>
+                    <span className="text-[11px] text-slate-400">High-frequency edge textures</span>
+                  </div>
+                  <span className="font-mono font-bold text-slate-900">2 marks</span>
                 </div>
+                <div className="flex justify-between items-center rounded-xl bg-slate-900 px-4 py-3 font-semibold text-white shadow-sm mt-3">
+                  <span>Automated AI Evaluation</span>
+                  <span className="font-mono font-bold text-base">80 marks</span>
+                </div>
+                <p className="text-[11px] text-slate-500 pt-1 text-center">
+                  +20 marks evaluated offline by judges / teachers for the final 100-mark total.
+                </p>
               </div>
             </CardBody>
           </Card>

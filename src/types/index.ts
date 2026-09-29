@@ -344,7 +344,9 @@ export interface ResultItem {
   feedback: string | null;
   submitted_at: string | null;
   clip_similarity?: number | null;
+  calibrated_similarity_pct?: number | null;
   evaluation_method?: string | null;
+  evaluation_stage?: 'FIRST' | 'FINAL' | null;
   first_scoring_status?: string | null;
   first_score?: number | null;
   first_score_breakdown?: ScoreBreakdown | null;

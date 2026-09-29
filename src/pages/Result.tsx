@@ -115,13 +115,19 @@ export function ResultPage() {
 
         {results.map((res) => {
           const categories: MetricCategory[] = [
-            { key: 'semantic', label: 'Overall Visual Similarity', score: res.semantic_similarity ?? res.semantic_score, max: 45, color: 'from-brand-500 to-indigo-600' },
-            { key: 'composition', label: 'Composition & Layout', score: res.composition_score, max: 12, color: 'from-blue-500 to-cyan-500' },
-            { key: 'objects', label: 'Objects & Attributes', score: res.objects_score, max: 10, color: 'from-emerald-500 to-teal-500' },
-            { key: 'color', label: 'Color & Lighting', score: res.color_score, max: 7, color: 'from-amber-500 to-orange-500' },
-            { key: 'quality', label: 'Image Quality', score: res.image_quality_score ?? 0, max: 4, color: 'from-rose-500 to-pink-500' },
-            { key: 'details', label: 'Fine Details', score: res.fine_details_score ?? res.details_score, max: 2, color: 'from-purple-500 to-indigo-500' },
+            { key: 'semantic', label: 'Overall Visual Similarity', score: res.semantic_similarity ?? res.semantic_score, max: 45, color: 'bg-slate-900' },
+            { key: 'composition', label: 'Composition & Layout', score: res.composition_score, max: 12, color: 'bg-slate-800' },
+            { key: 'objects', label: 'Objects & Attributes', score: res.objects_score, max: 10, color: 'bg-slate-700' },
+            { key: 'color', label: 'Color & Lighting', score: res.color_score, max: 7, color: 'bg-slate-600' },
+            { key: 'quality', label: 'Image Quality', score: res.image_quality_score ?? 0, max: 4, color: 'bg-slate-600' },
+            { key: 'details', label: 'Fine Details', score: res.fine_details_score ?? res.details_score, max: 2, color: 'bg-slate-500' },
           ];
+
+          const simPct = res.calibrated_similarity_pct !== undefined && res.calibrated_similarity_pct !== null
+            ? Number(res.calibrated_similarity_pct)
+            : res.clip_similarity !== undefined && res.clip_similarity !== null
+            ? (res.clip_similarity > 1 ? Number(res.clip_similarity) : Number(res.clip_similarity) * 100)
+            : null;
 
           return (
             <Card key={res.submission_id} className="overflow-hidden">
@@ -133,10 +139,9 @@ export function ResultPage() {
                     </span>
                     <CardTitle className="text-xl">{res.round_title}</CardTitle>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="rounded-full bg-slate-200 px-3 py-1 text-xs font-semibold text-slate-700">
-                      Status: {res.submission_status}
-                    </span>
+                  <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
+                    <span>Status:</span>
+                    <span className="font-semibold text-slate-900">{res.submission_status}</span>
                   </div>
                 </div>
               </CardHeader>
@@ -162,7 +167,7 @@ export function ResultPage() {
 
                   <div className="space-y-2">
                     <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-500">
-                      <Sparkles className="h-4 w-4 text-indigo-600" /> Your Generated Image
+                      <Sparkles className="h-4 w-4 text-brand-600" /> Your Generated Image
                     </p>
                     {res.uploaded_image_url ? (
                       <img
@@ -192,8 +197,8 @@ export function ResultPage() {
 
                 {/* Google Gemini Chat Link (if submitted) */}
                 {res.gemini_chat_link && (
-                  <div className="rounded-xl border border-brand-100 bg-brand-50/40 p-4 space-y-1">
-                    <p className="text-xs font-bold uppercase tracking-wider text-brand-700 flex items-center gap-1.5">
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-1">
+                    <p className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
                       <Link2 className="h-3.5 w-3.5 text-brand-600" />
                       Google Gemini Chat Link
                     </p>
@@ -226,33 +231,32 @@ export function ResultPage() {
 
                 {(res.scoring_status === 'SCORED' || res.total_score > 0) && (
                   <div className="space-y-6">
-                    {/* Total Score Badge & CLIP Similarity */}
-                    <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-gradient-to-r from-brand-600 to-indigo-700 p-6 text-white shadow-md">
+                    {/* Total Score Banner */}
+                    <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-slate-200/80 bg-slate-900 p-6 text-white shadow-sm">
                       <div>
-                        <span className="text-xs font-semibold uppercase tracking-wider text-white/80">
-                          Automated AI Score
-                        </span>
-                        <h3 className="text-3xl font-black tracking-tight">AI Evaluation Complete</h3>
-                        <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
-                          {res.clip_similarity !== undefined && res.clip_similarity !== null && (
-                            <span className="rounded-md bg-white/20 px-2.5 py-1 font-semibold backdrop-blur-sm">
-                              Visual Similarity: {res.clip_similarity.toFixed(1)}%
-                            </span>
-                          )}
-                          <span className="rounded-md bg-white/10 px-2.5 py-1 text-white/80">
-                            Engine: {res.evaluation_method || 'CLIP (openai/clip-vit-base-patch32) + Computer Vision'}
-                          </span>
+                        <div className="flex items-center gap-2 text-xs text-slate-400">
+                          <span>Automated Vision Scoring</span>
+                          <span aria-hidden="true">·</span>
+                          <span>Stage: {res.evaluation_stage || 'FINAL'}</span>
+                          <span aria-hidden="true">·</span>
+                          <span>{res.evaluation_method || 'CLIP ViT-B/32'}</span>
                         </div>
+                        <h3 className="mt-1 text-2xl font-bold tracking-tight text-white">Evaluation Complete</h3>
+                        {simPct !== null && (
+                          <div className="mt-2 font-mono text-xs text-slate-300 tabular-nums">
+                            Calibrated Visual Similarity: {simPct.toFixed(1)}%
+                          </div>
+                        )}
                       </div>
-                      <div className="flex items-baseline gap-1 rounded-2xl bg-white/10 px-6 py-3 backdrop-blur-sm ring-1 ring-white/20">
-                        <span className="text-4xl font-extrabold">{res.total_score}</span>
-                        <span className="text-lg text-white/80 font-bold">/ 80</span>
+                      <div className="flex items-baseline gap-1 rounded-xl bg-white/10 px-5 py-3 border border-white/10">
+                        <span className="font-mono text-3xl font-black text-white tabular-nums">{res.total_score}</span>
+                        <span className="font-mono text-sm text-slate-400 font-bold">/ 80</span>
                       </div>
                     </div>
 
                     {/* Breakdown Progress Bars */}
                     <div className="space-y-4">
-                      <h4 className="text-sm font-bold uppercase tracking-wider text-slate-500">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">
                         Score Breakdown (/80)
                       </h4>
 
@@ -260,15 +264,15 @@ export function ResultPage() {
                         const pct = Math.min(100, Math.max(0, (cat.score / cat.max) * 100));
                         return (
                           <div key={cat.key} className="space-y-1.5">
-                            <div className="flex items-center justify-between text-sm">
-                              <span className="font-semibold text-slate-700">{cat.label}</span>
-                              <span className="font-bold text-slate-900">
-                                {cat.score} <span className="text-slate-400 font-normal">/ {cat.max}</span>
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="font-medium text-slate-700">{cat.label}</span>
+                              <span className="font-mono font-bold text-slate-900 tabular-nums">
+                                {Number(cat.score).toFixed(1)} / {cat.max}
                               </span>
                             </div>
-                            <div className="h-3 overflow-hidden rounded-full bg-slate-100">
+                            <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
                               <div
-                                className={`h-full rounded-full bg-gradient-to-r ${cat.color} transition-all duration-500`}
+                                className={`h-full rounded-full transition-all duration-500 ${cat.color}`}
                                 style={{ width: `${pct}%` }}
                               />
                             </div>
@@ -298,8 +302,8 @@ export function ResultPage() {
 function Header() {
   return (
     <div>
-      <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">MY SUBMISSIONS & RESULTS</h1>
-      <p className="mt-1 text-slate-500">Reverse Prompt Engineering Challenge — Submission History</p>
+      <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">My Submissions</h1>
+      <p className="mt-1 text-xs sm:text-sm text-slate-500">Reverse Prompt Engineering Challenge — Submission History & Vision Scores</p>
     </div>
   );
 }

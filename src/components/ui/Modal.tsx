@@ -11,7 +11,7 @@ export interface ModalProps {
   description?: string;
   children: ReactNode;
   footer?: ReactNode;
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'sm' | 'md' | 'lg' | 'xl';
   className?: string;
 }
 
@@ -19,6 +19,7 @@ const sizeClasses = {
   sm: 'max-w-md',
   md: 'max-w-lg',
   lg: 'max-w-2xl',
+  xl: 'max-w-4xl',
 };
 
 export function Modal({
@@ -49,50 +50,56 @@ export function Modal({
   return createPortal(
     <AnimatePresence>
       <motion.div
-        className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
       >
+        {/* Backdrop */}
         <motion.div
-          className="absolute inset-0 bg-slate-950/50 backdrop-blur-sm"
+          className="fixed inset-0 bg-black/80 backdrop-blur-md"
           onClick={onClose}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
         />
+
+        {/* Dialog Content */}
         <motion.div
           role="dialog"
           aria-modal="true"
           className={cn(
-            'relative z-10 w-full rounded-2xl bg-white shadow-card-hover',
+            'relative w-full rounded-2xl border border-white/10 bg-surface-900/95 p-6 shadow-2xl backdrop-blur-2xl text-zinc-100 my-8 z-10',
             sizeClasses[size],
             className
           )}
-          initial={{ opacity: 0, scale: 0.95, y: 12 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 12 }}
-          transition={{ type: 'spring', duration: 0.3, bounce: 0.2 }}
+          initial={{ scale: 0.95, opacity: 0, y: 12 }}
+          animate={{ scale: 1, opacity: 1, y: 0 }}
+          exit={{ scale: 0.95, opacity: 0, y: 12 }}
+          transition={{ duration: 0.2, ease: 'easeOut' }}
         >
-          {(title || description) && (
-            <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-4">
-              <div>
-                {title && (
-                  <h3 className="text-lg font-semibold text-slate-900">{title}</h3>
-                )}
-                {description && (
-                  <p className="mt-0.5 text-sm text-slate-500">{description}</p>
-                )}
-              </div>
-              <button
-                onClick={onClose}
-                aria-label="Close dialog"
-                className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
-              >
-                <X className="h-5 w-5" />
-              </button>
+          <div className="flex items-start justify-between gap-4 pb-4 border-b border-white/[0.08]">
+            <div>
+              {title && (
+                <h3 className="text-lg font-bold tracking-tight text-white">{title}</h3>
+              )}
+              {description && (
+                <p className="mt-1 text-xs text-zinc-400">{description}</p>
+              )}
             </div>
-          )}
-          <div className="px-6 py-5">{children}</div>
+            <button
+              onClick={onClose}
+              className="rounded-lg p-1.5 text-zinc-400 hover:bg-white/10 hover:text-white transition-colors"
+              aria-label="Close dialog"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+
+          <div className="py-4 max-h-[75vh] overflow-y-auto pr-1">{children}</div>
+
           {footer && (
-            <div className="flex items-center justify-end gap-3 border-t border-slate-100 px-6 py-4">
+            <div className="flex items-center justify-end gap-3 pt-4 border-t border-white/[0.08]">
               {footer}
             </div>
           )}
