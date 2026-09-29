@@ -9,6 +9,7 @@ import {
   evaluateTargetVsCandidate,
   initMLModel,
   resolveLocalImagePath,
+  resolveOrFetchImagePath,
   EVALUATOR_VERSION,
   EVALUATOR_MODEL,
   MLScoreBreakdown,
@@ -521,17 +522,23 @@ async function evaluateSubmissionImages(
 ): Promise<StoredScoreBreakdown> {
   await ensureDefaultTargetImages();
 
-  let targetPath = resolveLocalImagePath(targetImageUrl || '', MEDIA_DIR);
+  console.log(`[EVALUATOR PIPELINE START] Stage: ${stage} | Target URL: ${targetImageUrl} | Candidate URL: ${candidateImagePathOrUrl}`);
+
+  let targetPath = await resolveOrFetchImagePath(targetImageUrl || '', MEDIA_DIR);
   if (!targetPath || !fs.existsSync(targetPath)) {
     targetPath = path.resolve(MEDIA_DIR, 'rounds/round_cyberpunk.png');
   }
 
-  let candidatePath = resolveLocalImagePath(candidateImagePathOrUrl, MEDIA_DIR);
+  let candidatePath = await resolveOrFetchImagePath(candidateImagePathOrUrl, MEDIA_DIR);
   if (!candidatePath || !fs.existsSync(candidatePath)) {
     candidatePath = candidateImagePathOrUrl;
   }
 
+  console.log(`[EVALUATOR PATHS RESOLVED] targetPath: "${targetPath}" (exists: ${fs.existsSync(targetPath)}) | candidatePath: "${candidatePath}" (exists: ${fs.existsSync(candidatePath)})`);
+
   const result = await evaluateTargetVsCandidate(targetPath, candidatePath, { stage });
+
+  console.log(`[EVALUATOR RESULT] Total: ${result.total_score}/80 | Sim: ${result.semantic_similarity}/45 | Comp: ${result.composition_score}/12 | Obj: ${result.objects_score}/10 | Col: ${result.color_score}/7 | Qual: ${result.image_quality_score}/4 | Det: ${result.fine_details_score}/2`);
 
   return {
     semantic_similarity: result.semantic_similarity,

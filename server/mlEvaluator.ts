@@ -99,9 +99,10 @@ export function resolveLocalImagePath(imagePathOrUrl: string, mediaDir: string):
     return clean;
   }
 
-  // 2. /media/... path
-  if (clean.startsWith('/media/')) {
-    const rel = clean.substring('/media/'.length);
+  // 2. URL or path containing /media/
+  const mediaIdx = clean.indexOf('/media/');
+  if (mediaIdx !== -1) {
+    const rel = clean.substring(mediaIdx + '/media/'.length);
     const candidate = path.resolve(mediaDir, rel);
     if (fs.existsSync(candidate)) return candidate;
   }
@@ -113,16 +114,53 @@ export function resolveLocalImagePath(imagePathOrUrl: string, mediaDir: string):
     if (fs.existsSync(candidate)) return candidate;
   }
 
-  // 4. uploads/... or submissions/... directly inside mediaDir
+  // 4. uploads/... or rounds/... or submissions/... directly inside mediaDir
   const candidateDirect = path.resolve(mediaDir, clean.replace(/^\/+/, ''));
   if (fs.existsSync(candidateDirect)) return candidateDirect;
 
-  // 5. Try basename in uploads directory
+  // 5. Try basename across uploads, rounds, and submissions directories
   const base = path.basename(clean);
   const candidateUploads = path.resolve(mediaDir, 'uploads', base);
   if (fs.existsSync(candidateUploads)) return candidateUploads;
 
+  const candidateRounds = path.resolve(mediaDir, 'rounds', base);
+  if (fs.existsSync(candidateRounds)) return candidateRounds;
+
+  const candidateSubmissions = path.resolve(mediaDir, 'submissions', base);
+  if (fs.existsSync(candidateSubmissions)) return candidateSubmissions;
+
   return null;
+}
+
+/**
+ * Resolves local image path or safely fetches and caches a remote image locally.
+ */
+export async function resolveOrFetchImagePath(imagePathOrUrl: string, mediaDir: string): Promise<string | null> {
+  const local = resolveLocalImagePath(imagePathOrUrl, mediaDir);
+  if (local && fs.existsSync(local)) return local;
+
+  if (imagePathOrUrl && (imagePathOrUrl.startsWith('http://') || imagePathOrUrl.startsWith('https://'))) {
+    try {
+      const crypto = await import('node:crypto');
+      const hash = crypto.createHash('md5').update(imagePathOrUrl).digest('hex');
+      const ext = path.extname(imagePathOrUrl.split('?')[0]) || '.png';
+      const cacheDir = path.resolve(mediaDir, 'cache');
+      fs.mkdirSync(cacheDir, { recursive: true });
+      const cachedFile = path.resolve(cacheDir, `remote-${hash}${ext}`);
+      if (fs.existsSync(cachedFile)) return cachedFile;
+
+      const resp = await fetch(imagePathOrUrl);
+      if (resp.ok) {
+        const buf = Buffer.from(await resp.arrayBuffer());
+        fs.writeFileSync(cachedFile, buf);
+        return cachedFile;
+      }
+    } catch (e) {
+      console.warn('[IMAGE RESOLVER] Failed to fetch remote image:', e);
+    }
+  }
+
+  return local;
 }
 
 /**
@@ -159,15 +197,17 @@ async function loadAndSanitizeImage(filePath: string): Promise<{
 
   // 1. Standard 224x224 RGB image for CLIP ViT-B/32 with black background for transparent pixels
   const raw224 = await sharp(filePath, { failOnError: false })
+    .rotate() // Auto-orient according to EXIF
+    .flatten({ background: { r: 0, g: 0, b: 0 } }) // Composite alpha over black
     .resize(224, 224, { fit: 'fill' })
-    .removeAlpha()
     .raw()
     .toBuffer();
 
   // 2. 64x64 RGB image for fast deterministic spatial, structural, and color analysis
   const raw64 = await sharp(filePath, { failOnError: false })
+    .rotate() // Auto-orient according to EXIF
+    .flatten({ background: { r: 0, g: 0, b: 0 } }) // Composite alpha over black
     .resize(64, 64, { fit: 'fill' })
-    .removeAlpha()
     .raw()
     .toBuffer();
 
@@ -675,20 +715,23 @@ function computeColorSimilarity(rgb1: Uint8Array, rgb2: Uint8Array): number {
 }
 
 /**
- * Computes Candidate Image Quality (Sharpness, Dynamic Range, Severe Blur/Corruption detection).
+ * Computes Candidate Image Quality (Sharpness fidelity, Dynamic Range, Severe Blur/Corruption detection).
  * Max: 4.0 points.
  * Note: Sharpness remains a secondary factor so high-quality unrelated images never score high.
+ * When evaluating an exact copy of the target, quality fidelity is guaranteed 4.0 / 4.0.
  */
 function computeImageQuality(
+  targetRgb: Uint8Array,
   candidateRgb: Uint8Array,
-  w: number,
-  h: number
+  targetW: number,
+  targetH: number,
+  candidateW: number,
+  candidateH: number
 ): number {
-  let laplacianSum = 0;
-  let laplacianSqSum = 0;
-  let count = 0;
-  let extremeBlackCount = 0;
-  let extremeWhiteCount = 0;
+  let lapSumCand = 0, lapSqSumCand = 0, count = 0;
+  let extBlackCand = 0, extWhiteCand = 0;
+  let lapSumTgt = 0, lapSqSumTgt = 0;
+  let extBlackTgt = 0, extWhiteTgt = 0;
 
   for (let y = 1; y < 63; y++) {
     for (let x = 1; x < 63; x++) {
@@ -698,36 +741,66 @@ function computeImageQuality(
       const idxL = (y * 64 + (x - 1)) * 3;
       const idxR = (y * 64 + (x + 1)) * 3;
 
-      const c = 0.299 * candidateRgb[idx] + 0.587 * candidateRgb[idx + 1] + 0.114 * candidateRgb[idx + 2];
-      const t = 0.299 * candidateRgb[idxT] + 0.587 * candidateRgb[idxT + 1] + 0.114 * candidateRgb[idxT + 2];
-      const b = 0.299 * candidateRgb[idxB] + 0.587 * candidateRgb[idxB + 1] + 0.114 * candidateRgb[idxB + 2];
-      const l = 0.299 * candidateRgb[idxL] + 0.587 * candidateRgb[idxL + 1] + 0.114 * candidateRgb[idxL + 2];
-      const r = 0.299 * candidateRgb[idxR] + 0.587 * candidateRgb[idxR + 1] + 0.114 * candidateRgb[idxR + 2];
+      const cC = 0.299 * candidateRgb[idx] + 0.587 * candidateRgb[idx + 1] + 0.114 * candidateRgb[idx + 2];
+      const tC = 0.299 * candidateRgb[idxT] + 0.587 * candidateRgb[idxT + 1] + 0.114 * candidateRgb[idxT + 2];
+      const bC = 0.299 * candidateRgb[idxB] + 0.587 * candidateRgb[idxB + 1] + 0.114 * candidateRgb[idxB + 2];
+      const lC = 0.299 * candidateRgb[idxL] + 0.587 * candidateRgb[idxL + 1] + 0.114 * candidateRgb[idxL + 2];
+      const rC = 0.299 * candidateRgb[idxR] + 0.587 * candidateRgb[idxR + 1] + 0.114 * candidateRgb[idxR + 2];
 
-      const lap = 4 * c - t - b - l - r;
-      laplacianSum += lap;
-      laplacianSqSum += lap * lap;
+      const lapC = 4 * cC - tC - bC - lC - rC;
+      lapSumCand += lapC;
+      lapSqSumCand += lapC * lapC;
+
+      if (cC <= 2) extBlackCand++;
+      if (cC >= 253) extWhiteCand++;
+
+      const cT = 0.299 * targetRgb[idx] + 0.587 * targetRgb[idx + 1] + 0.114 * targetRgb[idx + 2];
+      const tT = 0.299 * targetRgb[idxT] + 0.587 * targetRgb[idxT + 1] + 0.114 * targetRgb[idxT + 2];
+      const bT = 0.299 * targetRgb[idxB] + 0.587 * targetRgb[idxB + 1] + 0.114 * targetRgb[idxB + 2];
+      const lT = 0.299 * targetRgb[idxL] + 0.587 * targetRgb[idxL + 1] + 0.114 * targetRgb[idxL + 2];
+      const rT = 0.299 * targetRgb[idxR] + 0.587 * targetRgb[idxR + 1] + 0.114 * targetRgb[idxR + 2];
+
+      const lapT = 4 * cT - tT - bT - lT - rT;
+      lapSumTgt += lapT;
+      lapSqSumTgt += lapT * lapT;
+
+      if (cT <= 2) extBlackTgt++;
+      if (cT >= 253) extWhiteTgt++;
+
       count++;
-
-      if (c <= 2) extremeBlackCount++;
-      if (c >= 253) extremeWhiteCount++;
     }
   }
 
   // Laplacian variance (measure of focus & edge clarity)
-  const meanLap = laplacianSum / count;
-  const lapVar = Math.max(0, laplacianSqSum / count - meanLap * meanLap);
+  const meanLapC = lapSumCand / count;
+  const lapVarC = Math.max(0, lapSqSumCand / count - meanLapC * meanLapC);
 
-  // Normal clean photos/generations typically have lapVar ~ 150-500.
-  // Severe blur has lapVar < 25.
-  const sharpnessRatio = Math.min(1.0, Math.sqrt(lapVar / 180.0));
+  const meanLapT = lapSumTgt / count;
+  const lapVarT = Math.max(0, lapSqSumTgt / count - meanLapT * meanLapT);
 
-  // Dynamic range / clipping sanity (penalize extreme solid saturation)
-  const extremeRatio = (extremeBlackCount + extremeWhiteCount) / count;
-  const dynamicRangeScore = Math.max(0, 1.0 - Math.max(0, (extremeRatio - 0.40) * 1.6));
+  // Sharpness evaluation:
+  // Relative to target sharpness so faithful reproductions are rewarded 100%
+  let sharpnessRatio: number;
+  if (lapVarT <= 0.01 && lapVarC <= 0.01) {
+    sharpnessRatio = 1.0;
+  } else if (lapVarT <= 0.01) {
+    sharpnessRatio = 1.0;
+  } else {
+    const relRatio = Math.min(1.0, lapVarC / lapVarT);
+    const absRatio = Math.min(1.0, Math.sqrt(lapVarC / 100.0));
+    sharpnessRatio = Math.max(relRatio, absRatio);
+  }
 
-  // Resolution adequacy
-  const resRatio = Math.min(1.0, Math.sqrt((w * h) / (256 * 256)));
+  // Dynamic range / clipping sanity relative to target:
+  const extRatioC = (extBlackCand + extWhiteCand) / count;
+  const extRatioT = (extBlackTgt + extWhiteTgt) / count;
+  const extDiff = Math.abs(extRatioC - extRatioT);
+  const dynamicRangeScore = Math.max(0, 1.0 - extDiff * 1.5);
+
+  // Resolution adequacy relative to target:
+  const minDimT = Math.min(targetW, targetH);
+  const minDimC = Math.min(candidateW, candidateH);
+  const resRatio = Math.min(1.0, minDimC / Math.min(minDimT, 256));
 
   return 0.55 * sharpnessRatio + 0.30 * dynamicRangeScore + 0.15 * resRatio;
 }
@@ -770,7 +843,13 @@ function computeFineDetailsSimilarity(
   }
 
   const maxEnergy = Math.max(edgeEnergy1, edgeEnergy2, 1e-5);
-  const edgeRatio = Math.min(edgeEnergy1, edgeEnergy2) / maxEnergy;
+  let edgeRatio: number;
+  if (edgeEnergy1 < 50 && edgeEnergy2 < 50) {
+    const energyDiff = Math.abs(edgeEnergy1 - edgeEnergy2);
+    edgeRatio = Math.max(0.0, 1.0 - energyDiff / 50.0);
+  } else {
+    edgeRatio = Math.min(edgeEnergy1, edgeEnergy2) / maxEnergy;
+  }
 
   const rmsDiff = Math.sqrt(localDiff1 / (63 * 63));
   const textureSim = Math.max(0, 1.0 - rmsDiff / 80.0);
@@ -825,8 +904,14 @@ export async function evaluateTargetVsCandidate(
   const MIN_CLIP_BASELINE = 0.65;
   let calibratedRatio = 0.0;
   if (rawCosine > MIN_CLIP_BASELINE) {
-    const normRange = (rawCosine - MIN_CLIP_BASELINE) / (1.0 - MIN_CLIP_BASELINE);
-    calibratedRatio = Math.pow(Math.max(0.0, Math.min(1.0, normRange)), 1.25);
+    const normRange = Math.max(0.0, Math.min(1.0, (rawCosine - MIN_CLIP_BASELINE) / (1.0 - MIN_CLIP_BASELINE)));
+    if (normRange >= 0.88) {
+      const t = (normRange - 0.88) / 0.12;
+      const smoothT = t * t * (3 - 2 * t);
+      calibratedRatio = 0.88 + 0.12 * smoothT;
+    } else {
+      calibratedRatio = Math.pow(normRange, 1.4);
+    }
   }
   calibratedRatio = Math.max(0.0, Math.min(1.0, calibratedRatio));
 
@@ -834,7 +919,7 @@ export async function evaluateTargetVsCandidate(
   const dHashTarget = computeDualDHash(targetData.resized64Rgb);
   const dHashCandidate = computeDualDHash(candidateData.resized64Rgb);
   const rawDHashSim = computeDualDHashSimilarity(dHashTarget, dHashCandidate);
-  const calibratedStructSim = Math.max(0.0, Math.min(1.0, (rawDHashSim - 0.50) / 0.50));
+  const calibratedStructSim = Math.max(0.0, Math.min(1.0, (rawDHashSim - 0.50) / 0.48));
 
   const perceptualSsim = computePerceptualSSIM(targetData.resized64Rgb, candidateData.resized64Rgb);
   const patchAppearance = computePatchAppearanceSimilarity(targetData.resized64Rgb, candidateData.resized64Rgb);
@@ -887,7 +972,10 @@ export async function evaluateTargetVsCandidate(
   // (Secondary factor so sharp but visually incorrect images never score high overall)
   // ----------------------------------------------------------------------------------------
   const qualityRatio = computeImageQuality(
+    targetData.resized64Rgb,
     candidateData.resized64Rgb,
+    targetData.width,
+    targetData.height,
     candidateData.width,
     candidateData.height
   );
@@ -918,6 +1006,29 @@ export async function evaluateTargetVsCandidate(
   const total_score = Math.round(Math.max(0.0, Math.min(80.0, rawTotal)) * 100) / 100;
 
   const elapsedTime = Date.now() - startTime;
+
+  // Log internal diagnostic metrics (CHECK #2 requirement)
+  console.log('[ML EVALUATOR AUDIT LOG]', JSON.stringify({
+    target_image_path: targetImagePath,
+    candidate_image_path: candidateImagePath,
+    target_dimensions: `${targetData.width}x${targetData.height}`,
+    candidate_dimensions: `${candidateData.width}x${candidateData.height}`,
+    target_format: targetData.metadata.format,
+    candidate_format: candidateData.metadata.format,
+    embedding_similarity_raw_cosine: Math.round(rawCosine * 10000) / 10000,
+    perceptual_similarity_ssim: Math.round(perceptualSsim * 10000) / 10000,
+    structural_similarity_dhash: Math.round(calibratedStructSim * 10000) / 10000,
+    scores: {
+      overall_visual_similarity: semantic_similarity,
+      composition_score,
+      objects_score,
+      color_score,
+      image_quality_score,
+      fine_details_score,
+      total_score,
+    },
+    elapsed_ms: elapsedTime,
+  }));
 
   return {
     total_score,

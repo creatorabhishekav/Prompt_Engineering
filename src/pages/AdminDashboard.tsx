@@ -489,10 +489,10 @@ export function AdminDashboardPage() {
                                     <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${badge[round.status]}`}>
                                       {statusLabel[round.status]}
                                     </span>
-                                    {!round.target_image_url && round.status !== 'ended' && (
+                                    {round.status !== 'ended' && (
                                       <Button size="sm" variant="outline" onClick={() => setUploadFor(round)}>
                                         <Upload className="h-3.5 w-3.5" />
-                                        Upload image
+                                        {round.target_image_url ? 'Change target' : 'Upload image'}
                                       </Button>
                                     )}
                                     {allowedRoundActions[round.status].map((action) => {

@@ -77,7 +77,7 @@ export function AdminLoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="h-11 w-full rounded-xl border border-slate-300 bg-white px-4 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
-                placeholder="admin@example.com"
+                placeholder="Enter Admin ID"
               />
             </div>
 
@@ -113,7 +113,6 @@ export function AdminLoginPage() {
               }}
               className="w-full text-center text-xs text-brand-600 hover:text-brand-800 transition py-1"
             >
-              Demo Admin Credentials: admin@example.com / admin123 (Click to fill)
             </button>
           </form>
 
