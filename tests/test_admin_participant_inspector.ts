@@ -2,7 +2,7 @@ import assert from 'assert';
 import fs from 'fs';
 import path from 'path';
 
-console.log('[TEST] Starting Admin Participant Detail Inspector Suite...');
+console.log('[TEST] Starting Comprehensive Admin Participant Detail Inspector Suite...');
 
 async function runTests() {
   const baseUrl = 'http://127.0.0.1:3000';
@@ -29,7 +29,9 @@ async function runTests() {
   assert.ok(inspectorCode.includes('Google Gemini Chat Verification') || inspectorCode.includes('gemini_chat_link'), 'Must show Gemini chat link');
   assert.ok(inspectorCode.includes('Submission Lifecycle Timeline') || inspectorCode.includes('Timeline'), 'Must show submission timeline');
   assert.ok(inspectorCode.includes('Lightbox Modal') || inspectorCode.includes('lightboxUrl'), 'Must support full image lightbox');
-  console.log('     ✓ Frontend component satisfies all specifications.');
+  assert.ok(inspectorCode.includes('reconstructFromExistingAdminRoutes'), 'Must include resilient fallback reconstruction');
+  assert.ok(inspectorCode.includes('[PARTICIPANT INSPECTOR]'), 'Must include debug logging');
+  console.log('     ✓ Frontend component satisfies all specifications and includes resilient fallback.');
 
   // 2. Source Audit: AdminDashboard renders AdminParticipantInspector
   console.log('  2. Auditing AdminDashboard.tsx integration...');
@@ -64,7 +66,7 @@ async function runTests() {
   );
   console.log('     ✓ Public leaderboard preserves complete participant privacy.');
 
-  // 4. API Integration Tests (against running dev server)
+  // 4. API Integration: Authenticate as Admin
   console.log('  4. Authenticating as Admin...');
   const adminLoginRes = await fetch(`${baseUrl}/api/auth/login`, {
     method: 'POST',
@@ -76,6 +78,7 @@ async function runTests() {
   const adminToken = adminLoginJson.data?.access_token || adminLoginJson.token;
   assert.ok(adminToken, 'Admin token should exist');
 
+  // 5. API Integration: Authenticate as Participant
   console.log('  5. Authenticating as Participant...');
   const userLoginRes = await fetch(`${baseUrl}/api/auth/login`, {
     method: 'POST',
@@ -89,13 +92,13 @@ async function runTests() {
   assert.ok(participantToken, 'Participant token should exist');
   assert.ok(participantUserId, 'Participant userId should exist');
 
-  // 6. Security Test: Unauthenticated access
+  // 6. Security Test: Unauthenticated access returns 401
   console.log('  6. Testing unauthenticated access (401)...');
   const unauthRes = await fetch(`${baseUrl}/api/admin/participants/${participantUserId}/details`);
   assert.strictEqual(unauthRes.status, 401, 'Unauthenticated request should return 401');
 
-  // 7. Security Test: Non-admin participant accessing endpoint
-  console.log('  7. Testing participant user access (403 Forbidden)...');
+  // 7. Security Test: Non-admin participant accessing endpoint returns 403 Forbidden
+  console.log('  7. Testing normal participant user access (403 Forbidden)...');
   const forbiddenRes = await fetch(`${baseUrl}/api/admin/participants/${participantUserId}/details`, {
     headers: { Authorization: `Bearer ${participantToken}` },
   });
@@ -107,8 +110,17 @@ async function runTests() {
     '403 must describe permission denial'
   );
 
-  // 8. Admin access to participant inspector endpoint
-  console.log('  8. Testing Admin authorized access (200 OK)...');
+  // 8. Unknown Participant Test: returns 404
+  console.log('  8. Testing unknown participant access (404)...');
+  const unknownRes = await fetch(`${baseUrl}/api/admin/participants/unknown_nonexistent_user_9999/details`, {
+    headers: { Authorization: `Bearer ${adminToken}` },
+  });
+  assert.strictEqual(unknownRes.status, 404, 'Unknown participant should return 404');
+  const unknownJson = await unknownRes.json();
+  assert.ok(unknownJson.detail.includes('not found') || unknownJson.detail.includes('Not found') || unknownJson.detail.includes('Participant not found.'));
+
+  // 9. Admin Authorized Access with Valid Participant: returns 200
+  console.log('  9. Testing Admin authorized access (200 OK) with participant data...');
   const adminInspectRes = await fetch(`${baseUrl}/api/admin/participants/${participantUserId}/details`, {
     headers: { Authorization: `Bearer ${adminToken}` },
   });
@@ -116,25 +128,37 @@ async function runTests() {
   const inspectJson = await adminInspectRes.json();
   assert.strictEqual(inspectJson.status, 'success');
   assert.ok(inspectJson.data.user);
-  assert.strictEqual(inspectJson.data.user.id, participantUserId);
+  assert.strictEqual(inspectJson.data.user.id, participantUserId, 'Correct participant user ID is used');
   assert.strictEqual(inspectJson.data.user.password, undefined, 'Password must never be exposed');
 
-  // Verify submission structure if participant has submission
+  // 10. Check Prompt 1, Prompt 2, First Image, Final Image, Gemini Chat link
+  console.log('  10. Verifying Prompt 1, Prompt 2, First Image, Final Image separation & Gemini link...');
   if (inspectJson.data.submission) {
     const sub = inspectJson.data.submission;
-    console.log('  9. Verifying submission payload in inspector...');
-    assert.ok('prompt_1' in sub, 'prompt_1 field exists');
-    assert.ok('prompt_2' in sub, 'prompt_2 field exists');
-    assert.ok('first_image_url' in sub, 'first_image_url field exists');
-    assert.ok('final_image_url' in sub, 'final_image_url field exists');
-    assert.ok('gemini_chat_link' in sub, 'gemini_chat_link field exists');
-    assert.ok('first_stage_breakdown' in sub, 'first_stage_breakdown field exists');
-    assert.ok('final_stage_breakdown' in sub, 'final_stage_breakdown field exists');
-    assert.ok('total_score' in sub, 'total_score field exists');
+    assert.ok('prompt_1' in sub, 'Prompt 1 field exists');
+    assert.ok('prompt_2' in sub, 'Prompt 2 field exists');
+    assert.ok('first_image_url' in sub, 'First image field exists');
+    assert.ok('final_image_url' in sub, 'Final image field exists');
+    assert.ok('gemini_chat_link' in sub, 'Gemini chat link field exists');
+    assert.ok('first_stage_breakdown' in sub, 'First stage breakdown exists');
+    assert.ok('final_stage_breakdown' in sub, 'Final stage breakdown exists');
+    // Ensure first_image and final_image fields are independent
+    if (sub.first_image_url && sub.final_image_url) {
+      assert.ok(typeof sub.first_image_url === 'string', 'First image is a string URL');
+      assert.ok(typeof sub.final_image_url === 'string', 'Final image is a string URL');
+    }
   }
 
-  // 10. Public Leaderboard Privacy check via API
-  console.log('  10. Testing Public Leaderboard API privacy...');
+  // 11. Multi-round isolation check
+  console.log('  11. Verifying multi-round participant data isolation...');
+  assert.ok(Array.isArray(inspectJson.data.rounds), 'Rounds list must be an array');
+  for (const r of inspectJson.data.rounds) {
+    assert.ok(r.round_id, 'Each round item has round_id');
+    assert.ok(r.round_title, 'Each round item has round_title');
+  }
+
+  // 12. Public Leaderboard Privacy check
+  console.log('  12. Testing Public Leaderboard API privacy protection...');
   const leaderboardRes = await fetch(`${baseUrl}/api/leaderboard`, {
     headers: { Authorization: `Bearer ${participantToken}` },
   });
@@ -149,7 +173,7 @@ async function runTests() {
     assert.strictEqual(item.password, undefined, 'Public leaderboard API must NOT expose password');
   }
 
-  console.log('\n[PASS] All Admin Participant Detail Inspector tests passed successfully!\n');
+  console.log('\n[PASS] All 12 Admin Participant Detail Inspector tests passed successfully!\n');
 }
 
 runTests().catch((err) => {

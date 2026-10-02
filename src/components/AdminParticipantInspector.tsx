@@ -19,7 +19,14 @@ import {
   ZoomIn,
 } from 'lucide-react';
 import { adminApi, getApiErrorMessage, resolveMediaUrl } from '@/lib/api';
-import type { ParticipantDetailResponse } from '@/types';
+import type {
+  AdminSubmission,
+  Competition,
+  ParticipantDetailResponse,
+  ParticipantDetailRoundItem,
+  ParticipantDetailSubmission,
+  Round,
+} from '@/types';
 import { Button } from '@/components/ui/Button';
 import { Loading } from '@/components/ui/Loading';
 
@@ -27,6 +34,165 @@ interface AdminParticipantInspectorProps {
   userId: string | null;
   initialRoundId?: string | null;
   onClose: () => void;
+}
+
+// Fallback helper to reconstruct participant details from existing admin endpoints
+// if the dedicated endpoint returns 404 on an unupdated production backend.
+async function reconstructFromExistingAdminRoutes(
+  uid: string,
+  rId?: string | null
+): Promise<ParticipantDetailResponse | null> {
+  const usersList = await adminApi.users();
+  const cleanUid = decodeURIComponent(uid).toLowerCase().trim();
+  const foundUser = usersList.find(
+    (u) =>
+      u.id?.toLowerCase() === cleanUid ||
+      u.email?.toLowerCase() === cleanUid ||
+      u.username?.toLowerCase() === cleanUid
+  );
+
+  if (!foundUser) {
+    return null;
+  }
+
+  const comps = await adminApi.competitions();
+  const allRoundsWithComp: { comp: Competition; round: Round }[] = [];
+
+  for (const c of comps) {
+    if (c.rounds && Array.isArray(c.rounds) && c.rounds.length > 0) {
+      for (const r of c.rounds) {
+        allRoundsWithComp.push({ comp: c, round: r });
+      }
+    } else {
+      try {
+        const compRounds = await adminApi.rounds(c.id);
+        for (const r of compRounds) {
+          allRoundsWithComp.push({ comp: c, round: r });
+        }
+      } catch {
+        // Ignore single comp round fetch failure
+      }
+    }
+  }
+
+  const roundsList: ParticipantDetailRoundItem[] = [];
+  const participantSubmissions: {
+    comp: Competition;
+    round: Round;
+    sub: AdminSubmission;
+  }[] = [];
+
+  for (const item of allRoundsWithComp) {
+    try {
+      const subs = await adminApi.submissions(item.round.id);
+      const userSub = subs.find(
+        (s) =>
+          s.user_id?.toLowerCase() === foundUser.id.toLowerCase() ||
+          s.user_id?.toLowerCase() === cleanUid ||
+          s.username?.toLowerCase() === foundUser.username.toLowerCase()
+      );
+      if (userSub) {
+        participantSubmissions.push({
+          comp: item.comp,
+          round: item.round,
+          sub: userSub,
+        });
+        roundsList.push({
+          competition_id: item.comp.id,
+          competition_title: item.comp.title,
+          round_id: item.round.id,
+          round_title: item.round.title,
+          round_number: item.round.round_number || 1,
+          status: userSub.status,
+          score:
+            userSub.total_score ??
+            userSub.final_score ??
+            userSub.final_score_breakdown?.total_score ??
+            userSub.first_score ??
+            null,
+          target_image_url: null,
+        });
+      }
+    } catch {
+      // Ignore submission fetch error for inactive/archived round
+    }
+  }
+
+  let selected = participantSubmissions.find((p) => p.round.id === rId);
+  if (!selected && participantSubmissions.length > 0) {
+    selected = [...participantSubmissions].sort((a, b) => {
+      const scoreB = b.sub.total_score || b.sub.final_score || 0;
+      const scoreA = a.sub.total_score || a.sub.final_score || 0;
+      if (scoreB !== scoreA) return scoreB - scoreA;
+      return new Date(b.sub.created_at).getTime() - new Date(a.sub.created_at).getTime();
+    })[0];
+  }
+
+  let targetImageUrl: string | null = null;
+  if (selected?.round?.id) {
+    try {
+      const targetImages = await adminApi.targetImages(selected.round.id);
+      if (targetImages && targetImages.length > 0) {
+        targetImageUrl = targetImages[0].image_url;
+      }
+    } catch {
+      // Ignore target image fetch error
+    }
+  }
+
+  const selectedRound = selected
+    ? {
+        id: selected.round.id,
+        title: selected.round.title,
+        round_number: selected.round.round_number || 1,
+        status: selected.round.status,
+        target_image_url: targetImageUrl,
+        competition_id: selected.comp.id,
+        competition_title: selected.comp.title,
+      }
+    : null;
+
+  const sub = selected?.sub;
+  const subData: ParticipantDetailSubmission | null = sub
+    ? {
+        id: sub.id,
+        user_id: sub.user_id,
+        round_id: sub.round_id,
+        status: sub.status,
+        prompt_1: sub.prompt_1 || sub.prompt_used || null,
+        prompt_1_submitted_at: sub.created_at || null,
+        prompt_2: sub.prompt_2 || null,
+        prompt_2_submitted_at: sub.submitted_at || null,
+        first_image_url: sub.first_image_url || null,
+        first_image_uploaded_at: sub.created_at || null,
+        final_image_url: sub.final_image_url || sub.image_url || null,
+        final_image_uploaded_at: sub.submitted_at || null,
+        gemini_chat_link: sub.gemini_chat_link || null,
+        first_stage_breakdown: (sub.first_score_breakdown as any) || null,
+        final_stage_breakdown: (sub.final_score_breakdown as any) || null,
+        first_score: sub.first_score ?? sub.first_score_breakdown?.total_score ?? null,
+        final_score: sub.final_score ?? sub.final_score_breakdown?.total_score ?? sub.total_score ?? null,
+        total_score: sub.total_score ?? sub.final_score ?? null,
+        started_at: sub.created_at || null,
+        submitted_at: sub.submitted_at || null,
+        created_at: sub.created_at,
+        updated_at: sub.submitted_at || sub.created_at,
+      }
+    : null;
+
+  return {
+    user: {
+      id: foundUser.id,
+      username: foundUser.username,
+      email: foundUser.email,
+      full_name: foundUser.full_name,
+      role: 'PARTICIPANT',
+      created_at: foundUser.created_at,
+    },
+    rounds: roundsList,
+    selected_round: selectedRound,
+    submission: subData,
+  };
 }
 
 export function AdminParticipantInspector({
@@ -51,12 +217,38 @@ export function AdminParticipantInspector({
     setLoading(true);
     setError(null);
     try {
+      console.log('[PARTICIPANT INSPECTOR]');
+      console.log('userId:', uid);
+      console.log('endpoint:', `/admin/participants/${encodeURIComponent(uid)}/details`);
       const res = await adminApi.participantDetails(uid, rId || undefined);
+      console.log('response status: 200 OK');
       setData(res);
       if (res.selected_round?.id) {
         setSelectedRoundId(res.selected_round.id);
       }
-    } catch (e) {
+    } catch (e: any) {
+      const status = e?.response?.status;
+      console.log('response status:', status);
+
+      // If the dedicated endpoint returns 404 (for instance on production where Render has not yet deployed this route),
+      // gracefully reconstruct details from existing admin endpoints that ARE on Render:
+      if (status === 404) {
+        try {
+          console.log('[PARTICIPANT INSPECTOR] Falling back to existing admin routes...');
+          const fallbackData = await reconstructFromExistingAdminRoutes(uid, rId);
+          if (fallbackData) {
+            console.log('[PARTICIPANT INSPECTOR] Fallback reconstruction succeeded.');
+            setData(fallbackData);
+            if (fallbackData.selected_round?.id) {
+              setSelectedRoundId(fallbackData.selected_round.id);
+            }
+            return;
+          }
+        } catch (fallbackErr) {
+          console.warn('[PARTICIPANT INSPECTOR] Fallback reconstruction failed:', fallbackErr);
+        }
+      }
+
       setError(getApiErrorMessage(e));
     } finally {
       setLoading(false);

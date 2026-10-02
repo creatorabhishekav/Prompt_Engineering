@@ -254,7 +254,7 @@ export const adminApi = {
     api.get(`/admin/rounds/${roundId}/submissions`).then(unwrap<AdminSubmission[]>),
   participantDetails: (userId: string, roundId?: string) =>
     api
-      .get(`/admin/participants/${userId}/details`, {
+      .get(`/admin/participants/${encodeURIComponent(userId)}/details`, {
         params: roundId ? { roundId } : {},
       })
       .then(unwrap<ParticipantDetailResponse>),

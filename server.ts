@@ -1730,10 +1730,52 @@ export async function createExpressApp() {
     res.json({ status: 'success', data: list, message: 'OK' });
   });
 
-  // Admin: Participant Complete Details Inspector
-  app.get('/api/admin/participants/:userId/details', requireAdmin, (req, res) => {
-    const targetUserId = req.params.userId;
-    const targetUser = users.get(targetUserId);
+  // Admin: Participant Complete Details Inspector Handler
+  const handleAdminParticipantDetails = (req: Request, res: Response) => {
+    const rawUserId = req.params.userId;
+    if (!rawUserId) {
+      return res.status(404).json({ detail: 'Participant not found.' });
+    }
+    const targetUserId = decodeURIComponent(rawUserId).trim();
+
+    // 1. Direct ID / key lookup
+    let targetUser = users.get(targetUserId);
+
+    // 2. Case-insensitive lookup by id, email, or username
+    if (!targetUser) {
+      const clean = targetUserId.toLowerCase();
+      targetUser = Array.from(users.values()).find(
+        (u) =>
+          u.id?.toLowerCase() === clean ||
+          u.email?.toLowerCase() === clean ||
+          u.username?.toLowerCase() === clean
+      );
+    }
+
+    // 3. Fallback: Lookup in existing submissions
+    if (!targetUser) {
+      const clean = targetUserId.toLowerCase();
+      const sub = Array.from(submissions.values()).find(
+        (s) =>
+          s.user_id?.toLowerCase() === clean ||
+          s.username?.toLowerCase() === clean
+      );
+      if (sub) {
+        targetUser = {
+          id: sub.user_id,
+          email: `${sub.username || sub.user_id}@participant.challenge`,
+          username: sub.username || sub.user_id,
+          full_name: sub.full_name || sub.username || 'Challenge Participant',
+          role: 'PARTICIPANT',
+          avatar_url: null,
+          is_active: true,
+          created_at: sub.created_at || new Date().toISOString(),
+          updated_at: sub.updated_at || new Date().toISOString(),
+        };
+        users.set(targetUser.id, targetUser);
+      }
+    }
+
     if (!targetUser) {
       return res.status(404).json({ detail: 'Participant not found.' });
     }
@@ -1741,7 +1783,13 @@ export async function createExpressApp() {
     const reqRoundId = req.query.roundId as string | undefined;
 
     // Find all submissions by this user
-    const userSubs = Array.from(submissions.values()).filter((s) => s.user_id === targetUserId);
+    const userSubs = Array.from(submissions.values()).filter(
+      (s) =>
+        s.user_id === targetUser!.id ||
+        s.user_id === targetUserId ||
+        (targetUser!.email && s.user_id.toLowerCase() === targetUser!.email.toLowerCase()) ||
+        (targetUser!.username && s.username?.toLowerCase() === targetUser!.username.toLowerCase())
+    );
 
     // List of rounds this user has submissions for
     const roundsList = userSubs.map((sub) => {
@@ -1830,10 +1878,15 @@ export async function createExpressApp() {
         rounds: roundsList,
         selected_round: selectedRound,
         submission: subData,
+        submissions: userSubs,
       },
       message: 'OK',
     });
-  });
+  };
+
+  // Register on both /api/admin/participants/:userId/details and /admin/participants/:userId/details
+  app.get('/api/admin/participants/:userId/details', requireAdmin, handleAdminParticipantDetails);
+  app.get('/admin/participants/:userId/details', requireAdmin, handleAdminParticipantDetails);
 
   // Admin: Competitions list
   app.get('/api/admin/competitions', requireAdmin, (_req, res) => {
