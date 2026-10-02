@@ -207,6 +207,80 @@ export function ChallengePage() {
     return () => clearInterval(poll);
   }, [phase, resync]);
 
+  // Derived progression flags (safe to evaluate unconditionally)
+  const p1Submitted = Boolean(
+    challenge?.prompt_1 ||
+    challenge?.status === 'prompt1_submitted' ||
+    challenge?.status === 'first_uploaded' ||
+    challenge?.status === 'prompt2_submitted' ||
+    challenge?.status === 'completed' ||
+    challenge?.status === 'submitted' ||
+    (challenge?.prompt && !challenge?.prompt_2)
+  );
+  const firstImageUploaded = Boolean(challenge?.first_image_url);
+  const firstScoreDone = challenge?.first_score !== undefined && challenge?.first_score !== null;
+  const p2Unlocked = p1Submitted && (firstImageUploaded || firstScoreDone);
+  const p2Submitted = Boolean(
+    challenge?.prompt_2 ||
+    challenge?.status === 'prompt2_submitted' ||
+    challenge?.status === 'completed' ||
+    challenge?.status === 'submitted'
+  );
+  const finalImageUploaded = Boolean(challenge?.final_image_url);
+  const finalScoreDone = challenge?.final_score !== undefined && challenge?.final_score !== null;
+
+  // CRITICAL: Top-level hook execution to guarantee invariant hook order across ALL renders and phases
+  const stepperSteps: StepItem[] = useMemo(() => [
+    {
+      id: 'step-target',
+      number: '01',
+      label: 'Target',
+      status: 'completed',
+    },
+    {
+      id: 'step-p1',
+      number: '02',
+      label: 'Prompt 1',
+      status: p1Submitted ? 'completed' : phase === 'active' ? 'current' : 'locked',
+    },
+    {
+      id: 'step-first-img',
+      number: '03',
+      label: 'First Image',
+      status: firstImageUploaded ? 'completed' : p1Submitted ? 'current' : 'locked',
+    },
+    {
+      id: 'step-eval-1',
+      number: '04',
+      label: 'Evaluation 1',
+      status: firstScoreDone ? 'completed' : firstImageUploaded ? 'current' : 'locked',
+    },
+    {
+      id: 'step-p2',
+      number: '05',
+      label: 'Prompt 2',
+      status: p2Submitted ? 'completed' : p2Unlocked ? 'current' : 'locked',
+    },
+    {
+      id: 'step-final-img',
+      number: '06',
+      label: 'Final Image',
+      status: finalImageUploaded ? 'completed' : p2Submitted ? 'current' : 'locked',
+    },
+    {
+      id: 'step-gemini-link',
+      number: '07',
+      label: 'Gemini Link',
+      status: geminiChatLink.trim() ? 'completed' : finalImageUploaded ? 'current' : 'locked',
+    },
+    {
+      id: 'step-submission',
+      number: '08',
+      label: 'Submission',
+      status: phase === 'submitted' ? 'completed' : (finalImageUploaded && geminiChatLink.trim()) ? 'current' : 'locked',
+    },
+  ], [p1Submitted, phase, firstImageUploaded, firstScoreDone, p2Submitted, p2Unlocked, finalImageUploaded, geminiChatLink]);
+
   const handlePrompt1Submit = async () => {
     if (!challenge || !prompt1.trim()) {
       setError('Please enter a valid First Prompt before submitting.');
@@ -485,78 +559,6 @@ export function ChallengePage() {
       </PageTransition>
     );
   }
-
-  const p1Submitted = Boolean(
-    challenge?.prompt_1 ||
-    challenge?.status === 'prompt1_submitted' ||
-    challenge?.status === 'first_uploaded' ||
-    challenge?.status === 'prompt2_submitted' ||
-    challenge?.status === 'completed' ||
-    challenge?.status === 'submitted' ||
-    (challenge?.prompt && !challenge?.prompt_2)
-  );
-  const firstImageUploaded = Boolean(challenge?.first_image_url);
-  const firstScoreDone = challenge?.first_score !== undefined && challenge?.first_score !== null;
-  const p2Unlocked = p1Submitted && (firstImageUploaded || firstScoreDone);
-  const p2Submitted = Boolean(
-    challenge?.prompt_2 ||
-    challenge?.status === 'prompt2_submitted' ||
-    challenge?.status === 'completed' ||
-    challenge?.status === 'submitted'
-  );
-  const finalImageUploaded = Boolean(challenge?.final_image_url);
-  const finalScoreDone = challenge?.final_score !== undefined && challenge?.final_score !== null;
-
-  const stepperSteps: StepItem[] = useMemo(() => [
-    {
-      id: 'step-target',
-      number: '01',
-      label: 'Target',
-      status: 'completed',
-    },
-    {
-      id: 'step-p1',
-      number: '02',
-      label: 'Prompt 1',
-      status: p1Submitted ? 'completed' : phase === 'active' ? 'current' : 'locked',
-    },
-    {
-      id: 'step-first-img',
-      number: '03',
-      label: 'First Image',
-      status: firstImageUploaded ? 'completed' : p1Submitted ? 'current' : 'locked',
-    },
-    {
-      id: 'step-eval-1',
-      number: '04',
-      label: 'Evaluation 1',
-      status: firstScoreDone ? 'completed' : firstImageUploaded ? 'current' : 'locked',
-    },
-    {
-      id: 'step-p2',
-      number: '05',
-      label: 'Prompt 2',
-      status: p2Submitted ? 'completed' : p2Unlocked ? 'current' : 'locked',
-    },
-    {
-      id: 'step-final-img',
-      number: '06',
-      label: 'Final Image',
-      status: finalImageUploaded ? 'completed' : p2Submitted ? 'current' : 'locked',
-    },
-    {
-      id: 'step-gemini-link',
-      number: '07',
-      label: 'Gemini Link',
-      status: geminiChatLink.trim() ? 'completed' : finalImageUploaded ? 'current' : 'locked',
-    },
-    {
-      id: 'step-submission',
-      number: '08',
-      label: 'Submission',
-      status: phase === 'submitted' ? 'completed' : (finalImageUploaded && geminiChatLink.trim()) ? 'current' : 'locked',
-    },
-  ], [p1Submitted, phase, firstImageUploaded, firstScoreDone, p2Submitted, p2Unlocked, finalImageUploaded, geminiChatLink]);
 
   // active | submitted
   return (
