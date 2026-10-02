@@ -20,12 +20,14 @@ import {
   Users,
   ExternalLink,
   Link2,
+  Search,
 } from 'lucide-react';
 import { PageTransition } from '@/components/PageTransition';
 import { Card, CardBody, CardFooter, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { Loading } from '@/components/ui/Loading';
+import { AdminParticipantInspector } from '@/components/AdminParticipantInspector';
 import { adminApi, getApiErrorMessage, resolveMediaUrl } from '@/lib/api';
 import type {
   AdminSubmission,
@@ -123,6 +125,12 @@ export function AdminDashboardPage() {
   const [deleteSubTarget, setDeleteSubTarget] = useState<AdminSubmission | null>(null);
   const [clearSubsRoundTarget, setClearSubsRoundTarget] = useState<Round | null>(null);
   const [subSuccessMsg, setSubSuccessMsg] = useState<string | null>(null);
+
+  // Participant Detail Inspector States
+  const [inspectingUserId, setInspectingUserId] = useState<string | null>(null);
+  const [inspectingRoundId, setInspectingRoundId] = useState<string | null>(null);
+  const [participantSearch, setParticipantSearch] = useState('');
+  const [participantStatusFilter, setParticipantStatusFilter] = useState<'all' | 'scored' | 'in_progress'>('all');
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -293,6 +301,30 @@ export function AdminDashboardPage() {
     if (activeTab === 'active') return comp.status === 'active' || comp.status === 'paused';
     if (activeTab === 'scheduled') return comp.status === 'scheduled' || comp.status === 'draft';
     if (activeTab === 'ended') return comp.status === 'ended';
+    return true;
+  });
+
+  const filteredParticipants = users.filter((u) => {
+    const q = participantSearch.toLowerCase().trim();
+    const matchesQuery =
+      !q ||
+      u.username.toLowerCase().includes(q) ||
+      (u.full_name && u.full_name.toLowerCase().includes(q)) ||
+      u.email.toLowerCase().includes(q);
+
+    if (!matchesQuery) return false;
+
+    if (participantStatusFilter === 'scored') {
+      return u.score !== null && u.score !== undefined;
+    }
+    if (participantStatusFilter === 'in_progress') {
+      return (
+        u.latest_status &&
+        u.latest_status !== 'No Submissions' &&
+        u.latest_status !== 'completed' &&
+        u.latest_status !== 'evaluated'
+      );
+    }
     return true;
   });
 
@@ -563,53 +595,162 @@ export function AdminDashboardPage() {
             </Card>
           </div>
 
-          {/* Users */}
+          {/* Admin Participant Leaderboard & Submissions Inspector Table */}
           <div className="lg:col-span-2">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Users className="h-5 w-5 text-brand-600" />
-                  Participants
-                </CardTitle>
-              </CardHeader>
-              <CardBody>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-sm">
-                    <thead>
-                      <tr className="border-b border-slate-100 text-xs uppercase tracking-wide text-slate-400">
-                        <th className="py-3 pr-4 font-semibold">User</th>
-                        <th className="py-3 pr-4 font-semibold">Joined</th>
-                        <th className="py-3 text-right font-semibold">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {users.length === 0 && (
-                        <tr>
-                          <td className="py-6 text-center text-slate-400" colSpan={3}>
-                            No participants registered yet.
-                          </td>
-                        </tr>
-                      )}
-                      {users.map((user) => (
-                        <tr key={user.id} className="border-b border-slate-50">
-                          <td className="py-3 pr-4">
-                            <p className="font-medium text-slate-800">{user.username}</p>
-                            <p className="text-xs text-slate-400">{user.email}</p>
-                          </td>
-                          <td className="py-3 pr-4 text-xs text-slate-400">
-                            {new Date(user.created_at).toLocaleDateString()}
-                          </td>
-                          <td className="py-3 text-right">
-                            <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${user.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
-                              {user.is_active ? 'Active' : 'Disabled'}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+            <Card className="h-full flex flex-col">
+              <CardHeader className="pb-3 border-b border-slate-100">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <Users className="h-4 w-4 text-brand-600" />
+                      Participant Leaderboard
+                    </CardTitle>
+                    <span className="text-[11px] text-slate-400 font-medium">
+                      Click to inspect
+                    </span>
+                  </div>
+
+                  {/* Search and Filters */}
+                  <div className="space-y-2">
+                    <div className="relative">
+                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                      <input
+                        type="text"
+                        placeholder="Search participant or email..."
+                        value={participantSearch}
+                        onChange={(e) => setParticipantSearch(e.target.value)}
+                        className="w-full h-8 rounded-xl border border-slate-200 bg-white pl-8 pr-3 text-xs text-slate-800 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-200"
+                      />
+                    </div>
+
+                    <div className="flex items-center gap-1 text-[11px]">
+                      <button
+                        type="button"
+                        onClick={() => setParticipantStatusFilter('all')}
+                        className={`rounded-lg px-2 py-0.5 font-medium transition-colors ${
+                          participantStatusFilter === 'all'
+                            ? 'bg-slate-900 text-white font-semibold'
+                            : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
+                        }`}
+                      >
+                        All ({users.length})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setParticipantStatusFilter('scored')}
+                        className={`rounded-lg px-2 py-0.5 font-medium transition-colors ${
+                          participantStatusFilter === 'scored'
+                            ? 'bg-slate-900 text-white font-semibold'
+                            : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
+                        }`}
+                      >
+                        Scored ({users.filter((u) => u.score !== null && u.score !== undefined).length})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setParticipantStatusFilter('in_progress')}
+                        className={`rounded-lg px-2 py-0.5 font-medium transition-colors ${
+                          participantStatusFilter === 'in_progress'
+                            ? 'bg-slate-900 text-white font-semibold'
+                            : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
+                        }`}
+                      >
+                        In Progress
+                      </button>
+                    </div>
+                  </div>
                 </div>
+              </CardHeader>
+
+              <CardBody className="p-0 flex-1 overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-100 bg-slate-50/50 text-[10px] uppercase tracking-wider text-slate-400 font-semibold">
+                      <th className="py-2.5 pl-3 pr-2 text-center w-8">#</th>
+                      <th className="py-2.5 px-2">Participant</th>
+                      <th className="py-2.5 px-2 text-right">Score</th>
+                      <th className="py-2.5 pr-3 text-right">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {filteredParticipants.length === 0 && (
+                      <tr>
+                        <td className="py-8 text-center text-slate-400" colSpan={4}>
+                          {participantSearch ? 'No participants found.' : 'No participants registered.'}
+                        </td>
+                      </tr>
+                    )}
+                    {filteredParticipants.map((user) => (
+                      <tr
+                        key={user.id}
+                        onClick={() => {
+                          setInspectingUserId(user.id);
+                          setInspectingRoundId(user.round_id || null);
+                        }}
+                        className="group cursor-pointer hover:bg-emerald-50/60 transition-colors"
+                        title="Click to inspect complete participant submission details"
+                      >
+                        <td className="py-2.5 pl-3 pr-2 text-center font-mono font-bold text-slate-500">
+                          {user.rank ? (
+                            <span
+                              className={`inline-flex h-5 w-5 items-center justify-center rounded-full text-[10px] ${
+                                user.rank === 1
+                                  ? 'bg-amber-100 text-amber-800 font-black'
+                                  : user.rank === 2
+                                  ? 'bg-slate-200 text-slate-800'
+                                  : user.rank === 3
+                                  ? 'bg-amber-50 text-amber-900 border border-amber-200'
+                                  : 'text-slate-400'
+                              }`}
+                            >
+                              {user.rank}
+                            </span>
+                          ) : (
+                            <span className="text-slate-300 font-normal">—</span>
+                          )}
+                        </td>
+                        <td className="py-2.5 px-2">
+                          <p className="font-semibold text-slate-900 group-hover:text-brand-900 transition-colors truncate max-w-[130px]">
+                            {user.full_name || user.username}
+                          </p>
+                          <p className="text-[10px] text-slate-400 truncate max-w-[130px]">
+                            {user.email}
+                          </p>
+                        </td>
+                        <td className="py-2.5 px-2 text-right">
+                          {user.score !== null && user.score !== undefined ? (
+                            <span className="font-mono font-bold text-emerald-700">
+                              {user.score}
+                              <span className="text-[9px] text-emerald-500 font-normal">/80</span>
+                            </span>
+                          ) : (
+                            <span className="text-slate-300 font-mono">—</span>
+                          )}
+                        </td>
+                        <td className="py-2.5 pr-3 text-right">
+                          <span
+                            className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold capitalize ${
+                              user.score !== null && user.score !== undefined
+                                ? 'bg-emerald-100 text-emerald-800'
+                                : user.latest_status && user.latest_status !== 'No Submissions'
+                                ? 'bg-amber-100 text-amber-800'
+                                : 'bg-slate-100 text-slate-500'
+                            }`}
+                          >
+                            {user.latest_status && user.latest_status !== 'No Submissions'
+                              ? user.latest_status.replace('_', ' ')
+                              : 'Registered'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </CardBody>
+              <CardFooter className="py-2 px-3 bg-slate-50/50 border-t border-slate-100 text-[11px] text-slate-400 flex items-center justify-between">
+                <span>{filteredParticipants.length} participant(s)</span>
+                <span className="text-brand-700 font-medium">Click row to inspect</span>
+              </CardFooter>
             </Card>
           </div>
         </div>
@@ -724,6 +865,18 @@ export function AdminDashboardPage() {
                         Score: {sub.total_score} / 80
                       </span>
                     )}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="border-slate-200 text-slate-700 hover:bg-slate-50 text-xs px-2 py-1 h-7"
+                      onClick={() => {
+                        setInspectingUserId(sub.user_id);
+                        setInspectingRoundId(sub.round_id);
+                      }}
+                    >
+                      <Eye className="h-3.5 w-3.5 mr-1" />
+                      Inspect
+                    </Button>
                     <Button
                       size="sm"
                       variant="outline"
@@ -958,6 +1111,18 @@ export function AdminDashboardPage() {
           The round will be removed from the normal management view, but participant submissions and results will be preserved.
         </p>
       </Modal>
+
+      {/* Participant Complete Details Inspector Modal */}
+      {inspectingUserId && (
+        <AdminParticipantInspector
+          userId={inspectingUserId}
+          initialRoundId={inspectingRoundId}
+          onClose={() => {
+            setInspectingUserId(null);
+            setInspectingRoundId(null);
+          }}
+        />
+      )}
     </PageTransition>
   );
 }

@@ -234,6 +234,70 @@ export interface AdminUserListItem {
   full_name: string | null;
   is_active: boolean;
   created_at: string;
+  rank?: number;
+  score?: number | null;
+  submission_count?: number;
+  latest_status?: string;
+  round_id?: string | null;
+  round_title?: string | null;
+}
+
+export interface ParticipantDetailRoundItem {
+  competition_id: string;
+  competition_title: string;
+  round_id: string;
+  round_title: string;
+  round_number: number;
+  status: SubmissionStatus | string;
+  score: number | null;
+  target_image_url: string | null;
+}
+
+export interface ParticipantDetailSubmission {
+  id: string;
+  user_id: string;
+  round_id: string;
+  status: SubmissionStatus | string;
+  prompt_1: string | null;
+  prompt_1_submitted_at: string | null;
+  prompt_2: string | null;
+  prompt_2_submitted_at: string | null;
+  first_image_url: string | null;
+  first_image_uploaded_at: string | null;
+  final_image_url: string | null;
+  final_image_uploaded_at: string | null;
+  gemini_chat_link: string | null;
+  first_stage_breakdown: ScoreBreakdown | null;
+  final_stage_breakdown: ScoreBreakdown | null;
+  first_score: number | null;
+  final_score: number | null;
+  total_score: number | null;
+  started_at: string | null;
+  submitted_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ParticipantDetailResponse {
+  user: {
+    id: string;
+    username: string;
+    email: string;
+    full_name: string | null;
+    role: string;
+    created_at: string;
+  };
+  rounds: ParticipantDetailRoundItem[];
+  selected_round: {
+    id: string;
+    title: string;
+    round_number: number;
+    status: string;
+    target_image_url: string | null;
+    competition_id: string;
+    competition_title: string;
+  } | null;
+  submission: ParticipantDetailSubmission | null;
 }
 
 export interface OverviewStats {

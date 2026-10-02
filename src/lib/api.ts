@@ -22,6 +22,7 @@ import type {
   LeaderboardEntry,
   ResultItem,
   User,
+  ParticipantDetailResponse,
 } from '@/types';
 
 const TOKEN_KEY = 'match_that_image_token';
@@ -251,6 +252,12 @@ export const adminApi = {
     api.get(`/admin/rounds/${roundId}/target-images`).then(unwrap<TargetImage[]>),
   submissions: (roundId: string) =>
     api.get(`/admin/rounds/${roundId}/submissions`).then(unwrap<AdminSubmission[]>),
+  participantDetails: (userId: string, roundId?: string) =>
+    api
+      .get(`/admin/participants/${userId}/details`, {
+        params: roundId ? { roundId } : {},
+      })
+      .then(unwrap<ParticipantDetailResponse>),
   deleteSubmission: (submissionId: string) =>
     api.delete(`/admin/submissions/${submissionId}`).then(unwrap<{ id: string }>),
   archiveCompetition: (id: string) =>

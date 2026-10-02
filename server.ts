@@ -156,7 +156,11 @@ interface StoredSubmission {
   gemini_chat_link?: string | null;
   prompt_used: string;
   prompt_1?: string;
+  prompt_1_submitted_at?: string | null;
   prompt_2?: string;
+  prompt_2_submitted_at?: string | null;
+  first_image_uploaded_at?: string | null;
+  final_image_uploaded_at?: string | null;
   status: 'in_progress' | 'prompt1_submitted' | 'first_uploaded' | 'prompt2_submitted' | 'completed' | 'evaluated' | 'rejected';
   scoring_status?: 'pending' | 'scored' | 'failed' | null;
   started_at: string;
@@ -370,7 +374,11 @@ function seedSampleSubmissions() {
     gemini_chat_link: 'https://gemini.google.com/share/c897f1f98bc1',
     prompt_used: 'Futuristic cyberpunk neon street with rain reflections, glowing cyan holograms, flying hovercars',
     prompt_1: 'Cyberpunk street with neon signs and rain',
+    prompt_1_submitted_at: new Date(Date.now() - 3500000).toISOString(),
+    first_image_uploaded_at: new Date(Date.now() - 3400000).toISOString(),
     prompt_2: 'Futuristic cyberpunk neon street with rain reflections, glowing cyan holograms, flying hovercars',
+    prompt_2_submitted_at: new Date(Date.now() - 3200000).toISOString(),
+    final_image_uploaded_at: new Date(Date.now() - 3100000).toISOString(),
     status: 'completed',
     scoring_status: 'scored',
     started_at: new Date(Date.now() - 3600000).toISOString(),
@@ -430,6 +438,12 @@ function seedSampleSubmissions() {
     final_image_url: sampleImgUrl,
     gemini_chat_link: 'https://gemini.google.com/share/a123b456c789',
     prompt_used: 'Neon city street at night, wet asphalt, cyber aesthetic, glowing signs',
+    prompt_1: 'Neon city street at night, wet asphalt, cyber aesthetic, glowing signs',
+    prompt_1_submitted_at: new Date(Date.now() - 7100000).toISOString(),
+    first_image_uploaded_at: new Date(Date.now() - 7000000).toISOString(),
+    prompt_2: 'Neon city street at night with cyber aesthetic, reflections and vibrant signs',
+    prompt_2_submitted_at: new Date(Date.now() - 6800000).toISOString(),
+    final_image_uploaded_at: new Date(Date.now() - 6700000).toISOString(),
     status: 'completed',
     scoring_status: 'scored',
     started_at: new Date(Date.now() - 7200000).toISOString(),
@@ -509,6 +523,72 @@ function seedSampleSubmissions() {
     ...davidSub.final_stage_breakdown!,
     status: 'scored',
     feedback: davidSub.feedback || null,
+    created_at: new Date().toISOString(),
+  });
+
+  // Maya's Round 2 submission (Enchanted Crystal Grove) for multiple rounds support
+  const mayaRound2Sub: StoredSubmission = {
+    id: 'sub_maya_2',
+    user_id: participant2.id,
+    round_id: round2.id,
+    target_image_id: 'ti_round2',
+    image_url: sampleImgUrl,
+    first_image_url: sampleImgUrl,
+    final_image_url: sampleImgUrl,
+    gemini_chat_link: 'https://gemini.google.com/share/c897f1f98bc2',
+    prompt_used: 'Ancient mystical fantasy forest with glowing azure crystal mushrooms and twilight river',
+    prompt_1: 'Ethereal forest with glowing mushrooms and trees at twilight',
+    prompt_1_submitted_at: new Date(Date.now() - 1800000).toISOString(),
+    first_image_uploaded_at: new Date(Date.now() - 1700000).toISOString(),
+    prompt_2: 'Ancient mystical fantasy forest with glowing azure crystal mushrooms, light spores, and silver winding river',
+    prompt_2_submitted_at: new Date(Date.now() - 1500000).toISOString(),
+    final_image_uploaded_at: new Date(Date.now() - 1400000).toISOString(),
+    status: 'completed',
+    scoring_status: 'scored',
+    started_at: new Date(Date.now() - 2000000).toISOString(),
+    submitted_at: new Date(Date.now() - 1300000).toISOString(),
+    first_stage_breakdown: {
+      semantic_similarity: 35.0,
+      semantic_score: 35.0,
+      composition_score: 9.0,
+      objects_score: 7.5,
+      color_score: 5.5,
+      image_quality_score: 3.4,
+      fine_details_score: 1.4,
+      details_score: 1.4,
+      total_score: 61.8,
+      clip_similarity: 0.78,
+      evaluation_method: 'CLIP ViT-B/32 + Multi-Signal Vision (Calibrated)',
+    },
+    final_stage_breakdown: {
+      semantic_similarity: 40.5,
+      semantic_score: 40.5,
+      composition_score: 10.8,
+      objects_score: 9.0,
+      color_score: 6.3,
+      image_quality_score: 3.6,
+      fine_details_score: 1.6,
+      details_score: 1.6,
+      total_score: 71.8,
+      clip_similarity: 0.90,
+      evaluation_method: 'CLIP ViT-B/32 + Multi-Signal Vision (Calibrated)',
+    },
+    total_score: 71.8,
+    feedback: 'Luminescent color and atmosphere captured beautifully.',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+  submissions.set(mayaRound2Sub.id, mayaRound2Sub);
+
+  scores.set('score_maya_2', {
+    id: 'score_maya_2',
+    submission_id: mayaRound2Sub.id,
+    round_id: round2.id,
+    user_id: participant2.id,
+    stage: 'FINAL',
+    ...mayaRound2Sub.final_stage_breakdown!,
+    status: 'scored',
+    feedback: mayaRound2Sub.feedback || null,
     created_at: new Date().toISOString(),
   });
 }
@@ -1124,6 +1204,7 @@ export async function createExpressApp() {
       return res.status(404).json({ detail: 'Submission not found.' });
     }
     sub.prompt_1 = prompt || '';
+    sub.prompt_1_submitted_at = new Date().toISOString();
     sub.prompt_used = prompt || '';
     sub.status = 'prompt1_submitted';
     sub.updated_at = new Date().toISOString();
@@ -1154,6 +1235,7 @@ export async function createExpressApp() {
     }
 
     sub.first_image_url = imageUrl;
+    sub.first_image_uploaded_at = new Date().toISOString();
     sub.image_url = imageUrl;
     sub.status = 'first_uploaded';
 
@@ -1201,6 +1283,7 @@ export async function createExpressApp() {
       return res.status(404).json({ detail: 'Submission not found.' });
     }
     sub.prompt_2 = prompt || '';
+    sub.prompt_2_submitted_at = new Date().toISOString();
     sub.prompt_used = prompt || sub.prompt_1 || '';
     sub.status = 'prompt2_submitted';
     sub.updated_at = new Date().toISOString();
@@ -1231,6 +1314,7 @@ export async function createExpressApp() {
     }
 
     sub.final_image_url = imageUrl;
+    sub.final_image_uploaded_at = new Date().toISOString();
     sub.image_url = imageUrl;
     sub.status = 'completed';
     sub.scoring_status = 'scored';
@@ -1591,19 +1675,164 @@ export async function createExpressApp() {
     });
   });
 
-  // Admin: Users
+  // Admin: Users & Leaderboard
   app.get('/api/admin/users', requireAdmin, (_req, res) => {
     const list = Array.from(users.values())
       .filter((u) => u.role === 'PARTICIPANT')
-      .map((u) => ({
-        id: u.id,
-        username: u.username,
-        email: u.email,
-        full_name: u.full_name,
-        is_active: u.is_active,
-        created_at: u.created_at,
-      }));
+      .map((u) => {
+        const userSubs = Array.from(submissions.values()).filter((s) => s.user_id === u.id);
+        const topScore = userSubs.reduce((max, s) => {
+          const sc = Number(s.total_score || s.final_stage_breakdown?.total_score || 0);
+          return sc > max ? sc : max;
+        }, 0);
+        const latestSub = userSubs.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+        const round = latestSub ? rounds.get(latestSub.round_id) : undefined;
+        return {
+          id: u.id,
+          username: u.username,
+          email: u.email,
+          full_name: u.full_name,
+          is_active: u.is_active,
+          created_at: u.created_at,
+          score: topScore > 0 ? topScore : null,
+          submission_count: userSubs.length,
+          latest_status: latestSub ? latestSub.status : 'No Submissions',
+          round_id: latestSub?.round_id || null,
+          round_title: round?.title || null,
+        };
+      });
+
+    // Sort by score descending (participants with scores first, then by username)
+    list.sort((a, b) => {
+      if (a.score !== null && b.score !== null) {
+        return (b.score as number) - (a.score as number);
+      }
+      if (a.score !== null) return -1;
+      if (b.score !== null) return 1;
+      return a.username.localeCompare(b.username);
+    });
+
+    // Assign standard competition ranks for scored participants
+    let currentRank = 1;
+    for (let i = 0; i < list.length; i++) {
+      if (list[i].score !== null) {
+        if (i > 0 && list[i].score === list[i - 1].score) {
+          (list[i] as any).rank = (list[i - 1] as any).rank;
+        } else {
+          (list[i] as any).rank = currentRank;
+        }
+        currentRank++;
+      } else {
+        (list[i] as any).rank = undefined;
+      }
+    }
+
     res.json({ status: 'success', data: list, message: 'OK' });
+  });
+
+  // Admin: Participant Complete Details Inspector
+  app.get('/api/admin/participants/:userId/details', requireAdmin, (req, res) => {
+    const targetUserId = req.params.userId;
+    const targetUser = users.get(targetUserId);
+    if (!targetUser) {
+      return res.status(404).json({ detail: 'Participant not found.' });
+    }
+
+    const reqRoundId = req.query.roundId as string | undefined;
+
+    // Find all submissions by this user
+    const userSubs = Array.from(submissions.values()).filter((s) => s.user_id === targetUserId);
+
+    // List of rounds this user has submissions for
+    const roundsList = userSubs.map((sub) => {
+      const r = rounds.get(sub.round_id);
+      const c = r ? competitions.get(r.competition_id) : undefined;
+      return {
+        competition_id: c?.id || '',
+        competition_title: c?.title || 'Competition',
+        round_id: sub.round_id,
+        round_title: r?.title || 'Round',
+        round_number: r?.round_number || 1,
+        status: sub.status,
+        score: sub.total_score || sub.final_stage_breakdown?.total_score || sub.first_stage_breakdown?.total_score || null,
+        target_image_url: r?.target_image_url || null,
+      };
+    });
+
+    let selectedSub: StoredSubmission | undefined;
+    if (reqRoundId) {
+      selectedSub = userSubs.find((s) => s.round_id === reqRoundId);
+      if (!selectedSub) {
+        const existingRound = rounds.get(reqRoundId);
+        if (!existingRound) {
+          return res.status(404).json({ detail: 'Round not found.' });
+        }
+      }
+    } else {
+      // Default to highest scoring or latest
+      selectedSub = userSubs.sort((a, b) => {
+        const scoreB = b.total_score || b.final_stage_breakdown?.total_score || 0;
+        const scoreA = a.total_score || a.final_stage_breakdown?.total_score || 0;
+        if (scoreB !== scoreA) return scoreB - scoreA;
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      })[0];
+    }
+
+    let selectedRound = null;
+    const activeRoundId = selectedSub?.round_id || reqRoundId;
+    if (activeRoundId) {
+      const r = rounds.get(activeRoundId);
+      const c = r ? competitions.get(r.competition_id) : undefined;
+      if (r) {
+        selectedRound = {
+          id: r.id,
+          title: r.title,
+          round_number: r.round_number,
+          status: r.status,
+          target_image_url: r.target_image_url,
+          competition_id: c?.id || '',
+          competition_title: c?.title || '',
+        };
+      }
+    }
+
+    const { password: _, ...safeUser } = targetUser;
+
+    const subData = selectedSub ? {
+      id: selectedSub.id,
+      user_id: selectedSub.user_id,
+      round_id: selectedSub.round_id,
+      status: selectedSub.status,
+      prompt_1: selectedSub.prompt_1 || selectedSub.prompt_used || null,
+      prompt_1_submitted_at: selectedSub.prompt_1_submitted_at || selectedSub.created_at || null,
+      prompt_2: selectedSub.prompt_2 || null,
+      prompt_2_submitted_at: selectedSub.prompt_2_submitted_at || null,
+      first_image_url: selectedSub.first_image_url || null,
+      first_image_uploaded_at: selectedSub.first_image_uploaded_at || null,
+      final_image_url: selectedSub.final_image_url || selectedSub.image_url || null,
+      final_image_uploaded_at: selectedSub.final_image_uploaded_at || selectedSub.submitted_at || null,
+      gemini_chat_link: selectedSub.gemini_chat_link || null,
+      first_stage_breakdown: selectedSub.first_stage_breakdown || null,
+      final_stage_breakdown: selectedSub.final_stage_breakdown || null,
+      first_score: selectedSub.first_stage_breakdown?.total_score || null,
+      final_score: selectedSub.final_stage_breakdown?.total_score || null,
+      total_score: selectedSub.total_score || selectedSub.final_stage_breakdown?.total_score || null,
+      started_at: selectedSub.started_at,
+      submitted_at: selectedSub.submitted_at,
+      created_at: selectedSub.created_at,
+      updated_at: selectedSub.updated_at,
+    } : null;
+
+    res.json({
+      status: 'success',
+      data: {
+        user: safeUser,
+        rounds: roundsList,
+        selected_round: selectedRound,
+        submission: subData,
+      },
+      message: 'OK',
+    });
   });
 
   // Admin: Competitions list
