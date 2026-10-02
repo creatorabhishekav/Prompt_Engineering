@@ -18,13 +18,13 @@ const variantClasses: Record<ButtonVariant, string> = {
   glow:
     'bg-brand-600 text-white font-semibold shadow-glow hover:bg-brand-500 border border-brand-400/40 focus-visible:ring-2 focus-visible:ring-brand-400',
   secondary:
-    'bg-surface-800 text-zinc-100 font-medium hover:bg-surface-700 border border-white/[0.08] hover:border-white/20 focus-visible:ring-2 focus-visible:ring-zinc-400 shadow-sm',
+    'bg-slate-100 text-slate-800 font-medium hover:bg-slate-200 border border-slate-200/80 focus-visible:ring-2 focus-visible:ring-slate-400 shadow-sm',
   outline:
-    'border border-white/15 bg-white/[0.03] text-zinc-200 font-medium hover:bg-white/[0.08] hover:border-white/25 hover:text-white focus-visible:ring-2 focus-visible:ring-brand-400 backdrop-blur-sm',
+    'border border-slate-300 bg-white text-slate-700 font-medium hover:bg-slate-50 hover:text-slate-900 focus-visible:ring-2 focus-visible:ring-brand-400 shadow-sm',
   ghost:
-    'bg-transparent text-zinc-300 font-medium hover:bg-white/[0.06] hover:text-white focus-visible:ring-2 focus-visible:ring-zinc-400',
+    'bg-transparent text-slate-600 font-medium hover:bg-slate-100 hover:text-slate-900 focus-visible:ring-2 focus-visible:ring-slate-400',
   danger:
-    'bg-rose-500/15 border border-rose-500/30 text-rose-300 font-semibold hover:bg-rose-500/25 hover:border-rose-500/50 focus-visible:ring-2 focus-visible:ring-rose-500 shadow-sm',
+    'bg-rose-50 border border-rose-200 text-rose-700 font-semibold hover:bg-rose-100 focus-visible:ring-2 focus-visible:ring-rose-500 shadow-sm',
 };
 
 const sizeClasses: Record<ButtonSize, string> = {

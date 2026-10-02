@@ -10,7 +10,7 @@
   }
 
   * {
-    @apply border-slate-200;
+    @apply border-[#D8EBDD];
   }
 
   html {
@@ -18,10 +18,10 @@
   }
 
   body {
-    @apply min-h-screen bg-[#f8fafc] text-slate-900 font-sans;
+    @apply min-h-screen bg-[#F3FAF5] text-slate-900 font-sans;
     background-image: radial-gradient(
         ellipse 100% 40% at 50% -10%,
-        rgb(99 102 241 / 0.04),
+        rgb(20 83 45 / 0.035),
         transparent
       );
     background-attachment: fixed;
@@ -29,6 +29,20 @@
 
   ::selection {
     @apply bg-brand-600 text-white;
+  }
+}
+
+/* Hide native cursor only when kinetic cursor is active on desktop fine-pointer devices */
+@media (pointer: fine) {
+  html.kinetic-cursor-active,
+  html.kinetic-cursor-active body,
+  html.kinetic-cursor-active a,
+  html.kinetic-cursor-active button,
+  html.kinetic-cursor-active input,
+  html.kinetic-cursor-active select,
+  html.kinetic-cursor-active textarea,
+  html.kinetic-cursor-active [role="button"] {
+    cursor: none !important;
   }
 }
 

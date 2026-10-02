@@ -104,16 +104,6 @@ export function AdminLoginPage() {
               {!submitting && <LogIn className="h-4 w-4" />}
               Login as Admin
             </Button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setEmail('admin@example.com');
-                setPassword('admin123');
-              }}
-              className="w-full text-center text-xs text-brand-600 hover:text-brand-800 transition py-1"
-            >
-            </button>
           </form>
 
           <div className="pt-2 border-t border-slate-100 text-center">

@@ -50,7 +50,7 @@ export function LoginPage() {
           <motion.div
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-slate-900 text-white font-black text-sm tracking-wider"
+            className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-slate-900 text-white font-black text-sm tracking-wider shadow-sm"
           >
             RP
           </motion.div>

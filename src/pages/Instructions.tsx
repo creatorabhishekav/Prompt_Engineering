@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import {
   Brain,
   Download,
@@ -42,45 +42,82 @@ const rules = [
 ];
 
 export function InstructionsPage() {
+  const shouldReduceMotion = useReducedMotion();
+
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: {
+        staggerChildren: shouldReduceMotion ? 0 : 0.08,
+      },
+    },
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: shouldReduceMotion ? 0 : 12 },
+    show: {
+      opacity: 1,
+      y: 0,
+      transition: { duration: 0.4, ease: [0.16, 1, 0.3, 1] },
+    },
+  };
+
   return (
     <PageTransition>
       <div className="space-y-12">
-        {/* Hero */}
-        <section className="rounded-2xl border border-slate-200/80 bg-white p-8 sm:p-12 shadow-sm">
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
-            className="max-w-3xl space-y-4"
-          >
-            {/* Zero-Pill Unboxed Metadata */}
-            <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-slate-500">
-              <span className="text-slate-900 font-semibold">Competition Arena</span>
-              <span aria-hidden="true">·</span>
-              <span>15 Minutes Per Round</span>
-              <span aria-hidden="true">·</span>
-              <span>80 Marks Automated Vision Evaluation</span>
-            </div>
+        {/* Hero Section — clean presentation letting global 3D rotating background provide depth */}
+        <section className="relative overflow-hidden rounded-3xl border border-slate-200/80 bg-white/90 p-6 sm:p-10 shadow-sm backdrop-blur-md">
+          <div className="relative z-10 max-w-3xl">
+            <motion.div
+              variants={containerVariants}
+              initial="hidden"
+              animate="show"
+              className="space-y-5"
+            >
+              {/* Sequence 1: Brand Kicker */}
+              <motion.div variants={itemVariants} className="flex flex-wrap items-center gap-2 text-xs font-medium text-slate-500">
+                <span className="text-slate-900 font-bold tracking-wide">Competition Arena</span>
+                <span aria-hidden="true" className="text-slate-300">·</span>
+                <span>15 Minutes Per Round</span>
+                <span aria-hidden="true" className="text-slate-300">·</span>
+                <span>80 Marks Automated Vision Evaluation</span>
+              </motion.div>
 
-            <h1 className="text-balance text-3xl font-extrabold tracking-tight text-slate-900 sm:text-5xl">
-              Can you reverse-engineer the <span className="text-brand-600">target image</span>?
-            </h1>
-            <p className="text-base sm:text-lg leading-relaxed text-slate-600">
-              Inspect the reference artwork, craft an effective descriptive prompt, generate the image using your <strong>own Google Gemini account</strong>, and submit. The neural vision evaluator scores your attempt automatically out of 80 points.
-            </p>
-            <div className="pt-4 flex flex-wrap items-center gap-3">
-              <Link to="/challenge">
-                <Button size="lg">
-                  <Trophy className="h-4 w-4" /> Start Challenge
-                </Button>
-              </Link>
-              <a href="https://gemini.google.com" target="_blank" rel="noreferrer">
-                <Button size="lg" variant="outline">
-                  Open Gemini <ExternalLink className="h-4 w-4" />
-                </Button>
-              </a>
-            </div>
-          </motion.div>
+              {/* Sequence 2: Heading */}
+              <motion.h1
+                variants={itemVariants}
+                className="text-balance text-3xl font-extrabold tracking-tight text-slate-900 sm:text-5xl"
+              >
+                Can you reverse-engineer the <span className="text-brand-600">target image</span>?
+              </motion.h1>
+
+              {/* Sequence 3: Description */}
+              <motion.p
+                variants={itemVariants}
+                className="text-base sm:text-lg leading-relaxed text-slate-600"
+              >
+                Inspect the reference artwork, craft an effective descriptive prompt, generate the image using your <strong>own Google Gemini account</strong>, and submit. The neural vision evaluator scores your attempt automatically out of 80 points.
+              </motion.p>
+
+              {/* Sequence 4: CTAs */}
+              <motion.div
+                variants={itemVariants}
+                className="pt-2 flex flex-wrap items-center gap-3"
+              >
+                <Link to="/challenge">
+                  <Button size="lg" className="hover:-translate-y-0.5 transition-transform shadow-sm">
+                    <Trophy className="h-4 w-4" /> Start Challenge
+                  </Button>
+                </Link>
+                <a href="https://gemini.google.com" target="_blank" rel="noreferrer">
+                  <Button size="lg" variant="outline" className="hover:-translate-y-0.5 transition-transform border-slate-300 hover:bg-slate-50 text-slate-700">
+                    Open Gemini <ExternalLink className="h-4 w-4" />
+                  </Button>
+                </a>
+              </motion.div>
+            </motion.div>
+          </div>
         </section>
 
         {/* 10-Step Workflow */}
@@ -101,7 +138,7 @@ export function InstructionsPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.03 }}
               >
-                <div className="h-full rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm hover:border-slate-300 transition-colors flex flex-col justify-between">
+                <div className="h-full rounded-2xl border border-slate-200/80 bg-white/90 p-4 shadow-sm hover:border-slate-300 hover:shadow-md transition-all flex flex-col justify-between backdrop-blur-sm">
                   <div>
                     <div className="mb-3 flex items-center justify-between">
                       <span className="font-mono text-xs font-bold text-slate-400">

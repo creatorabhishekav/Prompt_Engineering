@@ -57,7 +57,7 @@ export function Modal({
       >
         {/* Backdrop */}
         <motion.div
-          className="fixed inset-0 bg-black/80 backdrop-blur-md"
+          className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm"
           onClick={onClose}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -69,7 +69,7 @@ export function Modal({
           role="dialog"
           aria-modal="true"
           className={cn(
-            'relative w-full rounded-2xl border border-white/10 bg-surface-900/95 p-6 shadow-2xl backdrop-blur-2xl text-zinc-100 my-8 z-10',
+            'relative w-full rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl text-slate-900 my-8 z-10',
             sizeClasses[size],
             className
           )}
@@ -78,18 +78,18 @@ export function Modal({
           exit={{ scale: 0.95, opacity: 0, y: 12 }}
           transition={{ duration: 0.2, ease: 'easeOut' }}
         >
-          <div className="flex items-start justify-between gap-4 pb-4 border-b border-white/[0.08]">
+          <div className="flex items-start justify-between gap-4 pb-4 border-b border-slate-100">
             <div>
               {title && (
-                <h3 className="text-lg font-bold tracking-tight text-white">{title}</h3>
+                <h3 className="text-lg font-bold tracking-tight text-slate-900">{title}</h3>
               )}
               {description && (
-                <p className="mt-1 text-xs text-zinc-400">{description}</p>
+                <p className="mt-1 text-xs text-slate-500">{description}</p>
               )}
             </div>
             <button
               onClick={onClose}
-              className="rounded-lg p-1.5 text-zinc-400 hover:bg-white/10 hover:text-white transition-colors"
+              className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
               aria-label="Close dialog"
             >
               <X className="h-5 w-5" />
@@ -99,7 +99,7 @@ export function Modal({
           <div className="py-4 max-h-[75vh] overflow-y-auto pr-1">{children}</div>
 
           {footer && (
-            <div className="flex items-center justify-end gap-3 pt-4 border-t border-white/[0.08]">
+            <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
               {footer}
             </div>
           )}

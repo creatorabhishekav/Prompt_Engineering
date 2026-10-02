@@ -158,7 +158,7 @@ export const ProtectedTargetImage: React.FC<ProtectedTargetImageProps> = ({
         ref={containerRef}
         onContextMenu={handleContextMenu}
         onDragStart={handleDragStart}
-        className={`group relative select-none overflow-hidden rounded-2xl border border-white/10 bg-surface-950 shadow-2xl ${className}`}
+        className={`group relative select-none overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 shadow-2xl ${className}`}
         style={{
           WebkitUserSelect: 'none',
           userSelect: 'none',
@@ -175,17 +175,17 @@ export const ProtectedTargetImage: React.FC<ProtectedTargetImageProps> = ({
 
         {/* Loading state */}
         {loading && (
-          <div className="flex aspect-square w-full items-center justify-center bg-surface-950 text-xs font-medium text-zinc-400">
+          <div className="flex aspect-square w-full items-center justify-center bg-slate-950 text-xs font-medium text-slate-400">
             <div className="flex flex-col items-center gap-3">
               <div className="h-8 w-8 animate-spin rounded-full border-2 border-brand-500 border-t-transparent" />
-              <span className="font-mono text-xs text-zinc-400">Securing & retrieving target image...</span>
+              <span className="font-mono text-xs text-slate-400">Securing & retrieving target image...</span>
             </div>
           </div>
         )}
 
         {/* Error state */}
         {!loading && (loadError || !blobUrl) && (
-          <div className="flex aspect-square w-full items-center justify-center bg-surface-950 p-6 text-center text-xs text-zinc-400 font-mono">
+          <div className="flex aspect-square w-full items-center justify-center bg-slate-950 p-6 text-center text-xs text-slate-400 font-mono">
             Target image stream not active for this round.
           </div>
         )}
@@ -217,11 +217,11 @@ export const ProtectedTargetImage: React.FC<ProtectedTargetImageProps> = ({
             >
               {/* Top header badge */}
               <div className="flex items-center justify-between gap-2">
-                <span className="flex items-center gap-1.5 rounded-lg bg-surface-950/80 px-2.5 py-1 text-[11px] font-mono font-bold tracking-wider text-emerald-300 border border-emerald-500/30 backdrop-blur-md shadow-sm">
+                <span className="flex items-center gap-1.5 rounded-lg bg-slate-950/80 px-2.5 py-1 text-[11px] font-mono font-bold tracking-wider text-emerald-300 border border-emerald-500/30 backdrop-blur-md shadow-sm">
                   <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
                   OFFICIAL TARGET
                 </span>
-                <span className="rounded-lg bg-surface-950/80 px-2 py-1 text-[10px] font-mono font-semibold text-zinc-300 border border-white/10 backdrop-blur-md">
+                <span className="rounded-lg bg-slate-950/80 px-2 py-1 text-[10px] font-mono font-semibold text-slate-300 border border-white/10 backdrop-blur-md">
                   SLOT: {maskedParticipant}
                 </span>
               </div>
@@ -237,14 +237,14 @@ export const ProtectedTargetImage: React.FC<ProtectedTargetImageProps> = ({
               </div>
 
               {/* Bottom protection notice and zoom trigger */}
-              <div className="flex items-center justify-between text-[10px] text-zinc-300">
-                <span className="rounded-lg bg-surface-950/70 px-2 py-0.5 border border-white/10 font-mono backdrop-blur-sm">
+              <div className="flex items-center justify-between text-[10px] text-slate-300">
+                <span className="rounded-lg bg-slate-950/70 px-2 py-0.5 border border-white/10 font-mono backdrop-blur-sm">
                   PROTECTED ASSET
                 </span>
                 <button
                   type="button"
                   onClick={() => setZoomOpen(true)}
-                  className="pointer-events-auto flex items-center gap-1 rounded-lg bg-surface-900/90 px-2 py-1 text-[11px] font-semibold text-zinc-200 border border-white/20 hover:bg-white/10 hover:text-white transition-colors backdrop-blur-md"
+                  className="pointer-events-auto flex items-center gap-1 rounded-lg bg-slate-900/90 px-2 py-1 text-[11px] font-semibold text-slate-200 border border-white/20 hover:bg-white/10 hover:text-white transition-colors backdrop-blur-md"
                   title="Expand to inspect details"
                 >
                   <Maximize2 className="h-3 w-3" />
@@ -272,8 +272,7 @@ export const ProtectedTargetImage: React.FC<ProtectedTargetImageProps> = ({
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
               onContextMenu={handleContextMenu}
-              onDragStart={handleDragStart}
-              className="relative z-10 max-w-4xl max-h-[90vh] overflow-hidden rounded-3xl border border-white/20 bg-surface-950 shadow-2xl p-2 select-none"
+              className="relative z-10 max-w-4xl max-h-[90vh] overflow-hidden rounded-3xl border border-white/20 bg-slate-950 shadow-2xl p-2 select-none"
             >
               <div className="relative">
                 <img
@@ -281,16 +280,17 @@ export const ProtectedTargetImage: React.FC<ProtectedTargetImageProps> = ({
                   alt="Target Inspection"
                   draggable={false}
                   onContextMenu={handleContextMenu}
+                  onDragStart={handleDragStart}
                   className="max-h-[82vh] w-auto rounded-2xl object-contain select-none"
                   style={{ userSelect: 'none' }}
                 />
                 <button
                   onClick={() => setZoomOpen(false)}
-                  className="absolute top-3 right-3 rounded-full bg-surface-950/80 p-2 text-white border border-white/20 hover:bg-white/20 transition-colors backdrop-blur-md"
+                  className="absolute top-3 right-3 rounded-full bg-slate-950/80 p-2 text-white border border-white/20 hover:bg-white/20 transition-colors backdrop-blur-md"
                 >
                   <X className="h-5 w-5" />
                 </button>
-                <div className="pointer-events-none absolute bottom-4 left-4 rounded-lg bg-surface-950/80 px-3 py-1.5 text-xs font-mono text-zinc-300 border border-white/10 backdrop-blur-md">
+                <div className="pointer-events-none absolute bottom-4 left-4 rounded-lg bg-slate-950/80 px-3 py-1.5 text-xs font-mono text-slate-300 border border-white/10 backdrop-blur-md">
                   Target Inspection Mode · Protected Stream
                 </div>
               </div>

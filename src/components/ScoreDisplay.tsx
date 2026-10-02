@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Brain, CheckCircle2, ChevronRight, Sparkles } from 'lucide-react';
+import { Brain, CheckCircle2 } from 'lucide-react';
 import type { ScoreBreakdown } from '@/types';
 
 interface ScoreDisplayProps {
@@ -68,8 +68,8 @@ export function ScoreDisplay({
     <div
       className={`rounded-2xl border p-5 backdrop-blur-xl transition-all duration-300 ${
         isOfficialLeaderboardScore
-          ? 'border-emerald-500/30 bg-emerald-950/20 shadow-glow-emerald'
-          : 'border-brand-500/30 bg-brand-950/20 shadow-glow'
+          ? 'border-emerald-500/40 bg-slate-900 text-white shadow-lg'
+          : 'border-slate-800 bg-slate-900 text-white shadow-lg'
       }`}
     >
       {/* Top Header */}
@@ -114,7 +114,7 @@ export function ScoreDisplay({
                 cx="50"
                 cy="50"
                 r="45"
-                className="stroke-surface-750 fill-none"
+                className="stroke-slate-800 fill-none"
                 strokeWidth="7"
               />
               <motion.circle
@@ -158,7 +158,7 @@ export function ScoreDisplay({
                   {m.score} <span className="text-zinc-500 font-normal">/ {m.max}</span>
                 </span>
               </div>
-              <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-750">
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
                 <motion.div
                   className={`h-full rounded-full ${m.color}`}
                   initial={{ width: 0 }}

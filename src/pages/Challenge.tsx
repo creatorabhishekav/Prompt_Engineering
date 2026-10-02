@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -22,6 +22,8 @@ import { Loading } from '@/components/ui/Loading';
 import { challengeApi, getApiErrorMessage, resolveMediaUrl } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import { ProtectedTargetImage } from '@/components/ProtectedTargetImage';
+import { ChallengeStepper, type StepItem } from '@/components/ChallengeStepper';
+import { ScoreDisplay } from '@/components/ScoreDisplay';
 import type { ActiveRound, ChallengeStatus } from '@/types';
 
 type Phase = 'loading' | 'lobby' | 'playing' | 'locked' | 'error' | 'empty';
@@ -439,6 +441,57 @@ export function ChallengePage() {
   const finalImageUploaded = Boolean(challenge?.final_image_url);
   const finalScoreDone = challenge?.final_score !== undefined && challenge?.final_score !== null;
 
+  const stepperSteps: StepItem[] = useMemo(() => [
+    {
+      id: 'step-target',
+      number: '01',
+      label: 'Target',
+      status: 'completed',
+    },
+    {
+      id: 'step-p1',
+      number: '02',
+      label: 'Prompt 1',
+      status: p1Submitted ? 'completed' : phase === 'playing' ? 'current' : 'locked',
+    },
+    {
+      id: 'step-first-img',
+      number: '03',
+      label: 'First Image',
+      status: firstImageUploaded ? 'completed' : p1Submitted ? 'current' : 'locked',
+    },
+    {
+      id: 'step-eval-1',
+      number: '04',
+      label: 'Evaluation 1',
+      status: firstScoreDone ? 'completed' : firstImageUploaded ? 'current' : 'locked',
+    },
+    {
+      id: 'step-p2',
+      number: '05',
+      label: 'Prompt 2',
+      status: p2Submitted ? 'completed' : p2Unlocked ? 'current' : 'locked',
+    },
+    {
+      id: 'step-final-img',
+      number: '06',
+      label: 'Final Image',
+      status: finalImageUploaded ? 'completed' : p2Submitted ? 'current' : 'locked',
+    },
+    {
+      id: 'step-gemini-link',
+      number: '07',
+      label: 'Gemini Link',
+      status: geminiChatLink.trim() ? 'completed' : finalImageUploaded ? 'current' : 'locked',
+    },
+    {
+      id: 'step-submission',
+      number: '08',
+      label: 'Submission',
+      status: phase === 'locked' ? 'completed' : (finalImageUploaded && geminiChatLink.trim()) ? 'current' : 'locked',
+    },
+  ], [p1Submitted, phase, firstImageUploaded, firstScoreDone, p2Submitted, p2Unlocked, finalImageUploaded, geminiChatLink]);
+
   // playing | locked
   return (
     <PageTransition>
@@ -476,7 +529,7 @@ export function ChallengePage() {
         {error && <ErrorBanner message={error} />}
 
         {/* Gemini & Challenge Instructions Banner */}
-        <div className="rounded-xl border border-slate-200/80 bg-white p-4 sm:p-5 shadow-sm">
+        <div className="rounded-2xl border border-slate-200/80 bg-white/90 p-4 sm:p-5 shadow-sm backdrop-blur-md">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="space-y-1">
               <h3 className="text-sm font-bold text-slate-900">
@@ -506,6 +559,9 @@ export function ChallengePage() {
             </a>
           </div>
         </div>
+
+        {/* Animated Challenge Progression Stepper */}
+        <ChallengeStepper steps={stepperSteps} />
 
         {/* Target Image & Sequential Challenge Steps Grid */}
         <div className="grid gap-6 lg:grid-cols-2">
@@ -622,33 +678,14 @@ export function ChallengePage() {
                     </div>
 
                     {firstScoreDone && (
-                      <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-2">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-xs font-bold text-slate-800">Practice Score</p>
-                            <p className="text-[11px] text-slate-500">Intermediate guidance · not on leaderboard</p>
-                          </div>
-                          <div className="font-mono text-2xl font-black text-slate-900 tabular-nums">
-                            {challenge.first_score} <span className="text-xs text-slate-400 font-bold">/ 80</span>
-                          </div>
-                        </div>
-                        {challenge.first_score_breakdown && (
-                          <>
-                            <div className="grid grid-cols-6 gap-1 pt-2 border-t border-brand-200 text-center text-[10px]">
-                              <div><span className="text-slate-400 block">Sim</span><strong className="text-slate-700">{challenge.first_score_breakdown.semantic_similarity ?? challenge.first_score_breakdown.semantic_score}/45</strong></div>
-                              <div><span className="text-slate-400 block">Comp</span><strong className="text-slate-700">{challenge.first_score_breakdown.composition_score}/12</strong></div>
-                              <div><span className="text-slate-400 block">Obj</span><strong className="text-slate-700">{challenge.first_score_breakdown.objects_score}/10</strong></div>
-                              <div><span className="text-slate-400 block">Col</span><strong className="text-slate-700">{challenge.first_score_breakdown.color_score}/7</strong></div>
-                              <div><span className="text-slate-400 block">Qual</span><strong className="text-slate-700">{challenge.first_score_breakdown.image_quality_score ?? 0}/4</strong></div>
-                              <div><span className="text-slate-400 block">Det</span><strong className="text-slate-700">{challenge.first_score_breakdown.fine_details_score ?? challenge.first_score_breakdown.details_score}/2</strong></div>
-                            </div>
-                            <div className="flex items-center justify-between pt-1 text-[10px] text-brand-600">
-                              <span>Model: {challenge.first_score_breakdown.evaluation_method || 'CLIP ViT-B/32'}</span>
-                              <span>Cosine: {challenge.first_score_breakdown.clip_similarity ?? '—'}</span>
-                            </div>
-                          </>
-                        )}
-                      </div>
+                      <ScoreDisplay
+                        score={challenge.first_score ?? 0}
+                        maxScore={80}
+                        breakdown={challenge.first_score_breakdown}
+                        stageName="Stage 1 Practice Score"
+                        subtitle="Intermediate Vision Evaluation · Not On Leaderboard"
+                        isOfficialLeaderboardScore={false}
+                      />
                     )}
 
                     {phase === 'playing' && (
@@ -942,8 +979,8 @@ function Header() {
   return (
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div>
-        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">Active Challenge</h1>
-        <p className="mt-1 text-xs sm:text-sm text-slate-500">Reverse Prompt Engineering Arena — Two-Stage Iterative Prompting</p>
+        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">Active Challenge</h1>
+        <p className="mt-1 text-xs sm:text-sm text-zinc-400">Reverse Prompt Engineering Arena — Two-Stage Iterative Prompting</p>
       </div>
     </div>
   );

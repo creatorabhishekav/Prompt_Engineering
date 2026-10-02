@@ -309,7 +309,7 @@ export function AdminDashboardPage() {
             <p className="mt-1 text-xs sm:text-sm text-slate-500">Manage competitions, configure round assets, and monitor participant submissions.</p>
           </div>
           <div className="flex items-center gap-3">
-            <Button variant="outline" size="sm" onClick={() => void refresh()} disabled={loading}>
+            <Button variant="outline" size="sm" onClick={() => void refresh()} disabled={loading} className="border-slate-300 text-slate-700 hover:text-slate-900 hover:bg-slate-50">
               <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
               Refresh
             </Button>
@@ -326,13 +326,13 @@ export function AdminDashboardPage() {
         {/* Stats */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[
-            { label: 'Registered Participants', value: stats?.participants ?? 0, icon: <Users className="h-4 w-4 text-slate-600" /> },
-            { label: 'Competitions', value: stats?.competitions ?? 0, icon: <Trophy className="h-4 w-4 text-slate-600" /> },
-            { label: 'Active & Ended Rounds', value: stats?.rounds ?? 0, icon: <Layers className="h-4 w-4 text-slate-600" /> },
-            { label: 'Completed Submissions', value: stats?.submissions ?? 0, icon: <CalendarPlus className="h-4 w-4 text-slate-600" /> },
+            { label: 'Registered Participants', value: stats?.participants ?? 0, icon: <Users className="h-4 w-4 text-brand-600" /> },
+            { label: 'Competitions', value: stats?.competitions ?? 0, icon: <Trophy className="h-4 w-4 text-amber-500" /> },
+            { label: 'Active & Ended Rounds', value: stats?.rounds ?? 0, icon: <Layers className="h-4 w-4 text-sky-600" /> },
+            { label: 'Completed Submissions', value: stats?.submissions ?? 0, icon: <CalendarPlus className="h-4 w-4 text-emerald-600" /> },
           ].map((stat, i) => (
             <motion.div key={stat.label} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}>
-              <div className="rounded-xl border border-slate-200/80 bg-white p-5 shadow-sm">
+              <div className="rounded-2xl border border-slate-200/80 bg-white/90 p-5 shadow-sm backdrop-blur-md">
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-xs font-medium text-slate-500">{stat.label}</span>
                   <div>{stat.icon}</div>
@@ -350,13 +350,13 @@ export function AdminDashboardPage() {
               <CardHeader className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <CardTitle>Competitions</CardTitle>
-                  <div className="mt-2 flex flex-wrap gap-1 rounded-lg bg-slate-100 p-1 text-xs font-medium">
+                  <div className="mt-2 flex flex-wrap gap-1 rounded-xl bg-slate-100 p-1 text-xs font-medium border border-slate-200/80">
                     {(['all', 'active', 'scheduled', 'ended', 'archived'] as FilterTab[]).map((tab) => (
                       <button
                         key={tab}
                         onClick={() => setActiveTab(tab)}
-                        className={`rounded-md px-2.5 py-1 capitalize transition-colors ${
-                          activeTab === tab ? 'bg-white font-bold text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                        className={`rounded-lg px-2.5 py-1 capitalize transition-colors ${
+                          activeTab === tab ? 'bg-white font-bold text-slate-900 shadow-sm border border-slate-200' : 'text-slate-500 hover:text-slate-900'
                         }`}
                       >
                         {tab}

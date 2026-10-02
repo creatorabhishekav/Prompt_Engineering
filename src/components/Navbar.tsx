@@ -40,25 +40,41 @@ export function Navbar() {
   const { user, logout, isAuthenticated } = useAuth();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
     setMobileOpen(false);
   }, [location.pathname]);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 12);
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const visibleLinks = navLinks.filter(
     (link) => !link.adminOnly || user?.role === 'ADMIN'
   );
 
   return (
-    <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/90 backdrop-blur-md">
+    <header
+      className={cn(
+        'sticky top-0 z-40 transition-all duration-300',
+        scrolled
+          ? 'border-b border-[#D8EBDD] bg-[#F8FCF9]/95 backdrop-blur-md shadow-sm'
+          : 'border-b border-[#D8EBDD]/70 bg-[#F8FCF9]/85 backdrop-blur-sm'
+      )}
+    >
       <div className="container-page">
         <div className="flex h-16 items-center justify-between gap-6">
           {/* Zone 1: Single text wordmark */}
           <Link
             to={isAuthenticated ? '/instructions' : '/'}
-            className="flex items-center gap-2.5 shrink-0"
+            className="flex items-center gap-2.5 shrink-0 group"
           >
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-900 text-xs font-black tracking-wider text-white">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-900 text-xs font-black tracking-wider text-white transition-transform duration-200 group-hover:scale-105">
               RP
             </span>
             <span className="text-base font-bold tracking-tight text-slate-900">
@@ -66,7 +82,7 @@ export function Navbar() {
             </span>
           </Link>
 
-          {/* Zone 2: Clean text nav links */}
+          {/* Zone 2: Clean text nav links with animated glider */}
           {isAuthenticated && (
             <nav className="hidden items-center gap-6 md:flex">
               {visibleLinks.map((link) => {
@@ -76,13 +92,18 @@ export function Navbar() {
                     key={link.to}
                     to={link.to}
                     className={cn(
-                      'text-sm font-medium transition-colors relative py-1',
-                      isActive
-                        ? 'text-slate-900 font-semibold after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-brand-600'
-                        : 'text-slate-500 hover:text-slate-900'
+                      'text-sm font-medium transition-colors relative py-1 px-0.5',
+                      isActive ? 'text-slate-900 font-semibold' : 'text-slate-500 hover:text-slate-900'
                     )}
                   >
-                    {link.label}
+                    <span>{link.label}</span>
+                    {isActive && (
+                      <motion.div
+                        layoutId="activeNavUnderline"
+                        className="absolute bottom-0 left-0 right-0 h-0.5 bg-brand-600 rounded-full"
+                        transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                      />
+                    )}
                   </Link>
                 );
               })}
@@ -92,7 +113,11 @@ export function Navbar() {
           {/* Zone 3: Primary Actions */}
           <div className="hidden items-center gap-4 md:flex shrink-0">
             {isAuthenticated ? (
-              <div className="flex items-center gap-4">
+              <motion.div
+                initial={{ opacity: 0, x: 8 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="flex items-center gap-4"
+              >
                 {user && (
                   <div className="flex items-center gap-2 text-xs text-slate-500">
                     <span className="font-semibold text-slate-900">{user.full_name || user.username}</span>
@@ -106,11 +131,11 @@ export function Navbar() {
                 )}
                 <button
                   onClick={logout}
-                  className="text-xs font-medium text-slate-500 hover:text-slate-900 transition-colors py-1.5 px-3 rounded-lg hover:bg-slate-100"
+                  className="text-xs font-medium text-slate-500 hover:text-slate-900 transition-colors py-1.5 px-3 rounded-lg hover:bg-slate-100 active:scale-95"
                 >
                   Log out
                 </button>
-              </div>
+              </motion.div>
             ) : (
               <div className="flex items-center gap-3">
                 <Link
@@ -121,7 +146,7 @@ export function Navbar() {
                 </Link>
                 <Link
                   to="/register"
-                  className="rounded-lg bg-slate-900 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-800 transition-colors"
+                  className="rounded-lg bg-slate-900 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-800 transition-all duration-150 hover:-translate-y-0.5 active:scale-95 shadow-sm"
                 >
                   Get started
                 </Link>

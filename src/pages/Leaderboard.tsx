@@ -94,9 +94,9 @@ export function LeaderboardPage() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search participant..."
-              className="rounded-lg border border-slate-300 bg-white px-3.5 py-1.5 text-xs text-slate-800 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 w-48 sm:w-56"
+              className="rounded-lg border border-slate-300 bg-white px-3.5 py-1.5 text-xs text-slate-800 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 w-48 sm:w-56 shadow-sm"
             />
-            <Button variant="outline" size="sm" onClick={() => void load()} disabled={loading}>
+            <Button variant="outline" size="sm" onClick={() => void load()} disabled={loading} className="border-slate-300 hover:bg-slate-50 text-slate-700">
               <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} /> Refresh
             </Button>
           </div>
@@ -111,7 +111,7 @@ export function LeaderboardPage() {
 
         {/* Current User Highlight Banner if ranked */}
         {currentUserEntry && (
-          <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-slate-200 bg-white px-6 py-4 text-slate-900 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white/95 px-6 py-4 text-slate-900 shadow-sm backdrop-blur-md">
             <div className="flex items-center gap-4">
               <div className="font-mono text-xl font-black text-brand-600">
                 #{currentUserEntry.rank}
@@ -145,7 +145,7 @@ export function LeaderboardPage() {
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: p.rank * 0.08 }}
-                className={`rounded-2xl border ${p.border} bg-white p-5 shadow-sm flex flex-col justify-between`}
+                className={`rounded-2xl border ${p.border} bg-white/90 p-5 shadow-sm backdrop-blur-md flex flex-col justify-between`}
               >
                 <div>
                   <div className="flex items-center justify-between">

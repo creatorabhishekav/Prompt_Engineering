@@ -1,5 +1,4 @@
-import { motion } from 'framer-motion';
-import { Check, Circle } from 'lucide-react';
+import { Check } from 'lucide-react';
 
 export interface StepItem {
   id: string;
@@ -15,7 +14,7 @@ interface ChallengeStepperProps {
 export function ChallengeStepper({ steps }: ChallengeStepperProps) {
   return (
     <div className="w-full overflow-x-auto pb-2 select-none">
-      <div className="flex items-center min-w-[720px] justify-between rounded-2xl border border-white/[0.08] bg-surface-900/80 px-4 py-3 backdrop-blur-xl">
+      <div className="flex items-center min-w-[720px] justify-between rounded-2xl border border-slate-200/80 bg-white/95 px-4 py-3 shadow-sm backdrop-blur-md">
         {steps.map((st, index) => {
           const isCompleted = st.status === 'completed';
           const isCurrent = st.status === 'current';
@@ -23,15 +22,15 @@ export function ChallengeStepper({ steps }: ChallengeStepperProps) {
 
           return (
             <div key={st.id} className="flex items-center flex-1 last:flex-initial">
-              <div className="flex items-center gap-2 group">
+              <div className={`flex items-center gap-2 group transition-opacity ${isLocked ? 'opacity-50' : 'opacity-100'}`}>
                 {/* Node icon */}
                 <div
                   className={`flex h-6 w-6 items-center justify-center rounded-lg font-mono text-[10px] font-bold transition-all duration-200 ${
                     isCompleted
-                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm'
+                      ? 'bg-emerald-100 text-emerald-700 border border-emerald-300 shadow-sm'
                       : isCurrent
-                      ? 'bg-brand-500 text-white shadow-glow border border-brand-400'
-                      : 'bg-surface-800 text-zinc-500 border border-white/[0.06]'
+                      ? 'bg-brand-600 text-white shadow-sm border border-brand-500'
+                      : 'bg-slate-100 text-slate-400 border border-slate-200'
                   }`}
                 >
                   {isCompleted ? (
@@ -46,10 +45,10 @@ export function ChallengeStepper({ steps }: ChallengeStepperProps) {
                   <span
                     className={`font-mono text-[11px] font-bold tracking-tight whitespace-nowrap transition-colors ${
                       isCompleted
-                        ? 'text-emerald-300/90'
+                        ? 'text-emerald-700'
                         : isCurrent
-                        ? 'text-white'
-                        : 'text-zinc-500'
+                        ? 'text-slate-900'
+                        : 'text-slate-400'
                     }`}
                   >
                     {st.label}
@@ -59,13 +58,13 @@ export function ChallengeStepper({ steps }: ChallengeStepperProps) {
 
               {/* Connecting line to next step */}
               {index < steps.length - 1 && (
-                <div className="mx-2 sm:mx-3 h-[1px] flex-1 bg-surface-750 overflow-hidden">
+                <div className="mx-2 sm:mx-3 h-[1px] flex-1 bg-slate-200 overflow-hidden">
                   <div
                     className={`h-full transition-all duration-300 ${
                       isCompleted
-                        ? 'bg-emerald-500/50'
+                        ? 'bg-emerald-500'
                         : isCurrent
-                        ? 'bg-gradient-to-r from-brand-500 to-transparent'
+                        ? 'bg-gradient-to-r from-brand-500 to-slate-200'
                         : 'bg-transparent'
                     }`}
                   />

@@ -115,12 +115,12 @@ export function ResultPage() {
 
         {results.map((res) => {
           const categories: MetricCategory[] = [
-            { key: 'semantic', label: 'Overall Visual Similarity', score: res.semantic_similarity ?? res.semantic_score, max: 45, color: 'bg-slate-900' },
-            { key: 'composition', label: 'Composition & Layout', score: res.composition_score, max: 12, color: 'bg-slate-800' },
-            { key: 'objects', label: 'Objects & Attributes', score: res.objects_score, max: 10, color: 'bg-slate-700' },
-            { key: 'color', label: 'Color & Lighting', score: res.color_score, max: 7, color: 'bg-slate-600' },
-            { key: 'quality', label: 'Image Quality', score: res.image_quality_score ?? 0, max: 4, color: 'bg-slate-600' },
-            { key: 'details', label: 'Fine Details', score: res.fine_details_score ?? res.details_score, max: 2, color: 'bg-slate-500' },
+            { key: 'semantic', label: 'Overall Visual Similarity', score: res.semantic_similarity ?? res.semantic_score, max: 45, color: 'bg-indigo-500' },
+            { key: 'composition', label: 'Composition & Layout', score: res.composition_score, max: 12, color: 'bg-cyan-500' },
+            { key: 'objects', label: 'Objects & Attributes', score: res.objects_score, max: 10, color: 'bg-emerald-500' },
+            { key: 'color', label: 'Color & Lighting', score: res.color_score, max: 7, color: 'bg-amber-500' },
+            { key: 'quality', label: 'Image Quality', score: res.image_quality_score ?? 0, max: 4, color: 'bg-pink-500' },
+            { key: 'details', label: 'Fine Details', score: res.fine_details_score ?? res.details_score, max: 2, color: 'bg-purple-500' },
           ];
 
           const simPct = res.calibrated_similarity_pct !== undefined && res.calibrated_similarity_pct !== null
@@ -131,17 +131,17 @@ export function ResultPage() {
 
           return (
             <Card key={res.submission_id} className="overflow-hidden">
-              <CardHeader className="border-b border-slate-100 bg-slate-50/50">
+              <CardHeader className="border-b border-slate-100 bg-slate-50/60">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
-                    <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                    <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                       {res.competition_title}
                     </span>
-                    <CardTitle className="text-xl">{res.round_title}</CardTitle>
+                    <CardTitle className="text-xl text-slate-900">{res.round_title}</CardTitle>
                   </div>
                   <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
                     <span>Status:</span>
-                    <span className="font-semibold text-slate-900">{res.submission_status}</span>
+                    <span className="font-semibold text-emerald-600">{res.submission_status}</span>
                   </div>
                 </div>
               </CardHeader>
@@ -248,9 +248,9 @@ export function ResultPage() {
                           </div>
                         )}
                       </div>
-                      <div className="flex items-baseline gap-1 rounded-xl bg-white/10 px-5 py-3 border border-white/10">
-                        <span className="font-mono text-3xl font-black text-white tabular-nums">{res.total_score}</span>
-                        <span className="font-mono text-sm text-slate-400 font-bold">/ 80</span>
+                      <div className="flex items-baseline gap-1 rounded-xl bg-slate-100 px-5 py-3 border border-slate-200">
+                        <span className="font-mono text-3xl font-black text-slate-900 tabular-nums">{res.total_score}</span>
+                        <span className="font-mono text-sm text-slate-500 font-bold">/ 80</span>
                       </div>
                     </div>
 
@@ -270,7 +270,7 @@ export function ResultPage() {
                                 {Number(cat.score).toFixed(1)} / {cat.max}
                               </span>
                             </div>
-                            <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
+                            <div className="h-2 w-full rounded-full bg-slate-200 overflow-hidden">
                               <div
                                 className={`h-full rounded-full transition-all duration-500 ${cat.color}`}
                                 style={{ width: `${pct}%` }}
@@ -289,7 +289,7 @@ export function ResultPage() {
 
         <div className="flex justify-center gap-4">
           <Link to="/leaderboard">
-            <Button size="lg">
+            <Button size="lg" className="shadow-sm">
               <Trophy className="h-4 w-4" /> View Leaderboard
             </Button>
           </Link>
