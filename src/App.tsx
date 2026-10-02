@@ -7,6 +7,7 @@ import { RegisterPage } from '@/pages/Register';
 import { AdminLoginPage } from '@/pages/AdminLogin';
 import { InstructionsPage } from '@/pages/Instructions';
 import { ChallengePage } from '@/pages/Challenge';
+import { ChallengeErrorBoundary } from '@/components/ChallengeErrorBoundary';
 import { ResultPage } from '@/pages/Result';
 import { LeaderboardPage } from '@/pages/Leaderboard';
 import { AdminDashboardPage } from '@/pages/AdminDashboard';
@@ -24,7 +25,14 @@ export function App() {
 
             <Route element={<ProtectedRoute />}>
               <Route path="/instructions" element={<InstructionsPage />} />
-              <Route path="/challenge" element={<ChallengePage />} />
+              <Route
+                path="/challenge"
+                element={
+                  <ChallengeErrorBoundary>
+                    <ChallengePage />
+                  </ChallengeErrorBoundary>
+                }
+              />
               <Route path="/result" element={<ResultPage />} />
               <Route path="/results" element={<Navigate to="/result" replace />} />
               <Route path="/leaderboard" element={<LeaderboardPage />} />

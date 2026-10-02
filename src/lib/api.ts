@@ -97,8 +97,12 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      console.log('[AXIOS 401 INTERCEPTOR TRIGGERED ON]', error.config?.url);
-      tokenStorage.clear();
+      const url = error.config?.url || '';
+      console.warn('[AXIOS 401 INTERCEPTOR TRIGGERED ON]', url);
+      // Only clear storage when the primary auth identity check fails
+      if (url.includes('/auth/me') || url.includes('/auth/login')) {
+        tokenStorage.clear();
+      }
     }
     return Promise.reject(error);
   }

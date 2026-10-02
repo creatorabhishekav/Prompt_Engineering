@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ShieldAlert, ShieldCheck, Maximize2, X } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
+import { challengeApi, resolveMediaUrl } from '@/lib/api';
 
 interface ProtectedTargetImageProps {
   roundId?: string;
@@ -52,7 +53,6 @@ export const ProtectedTargetImage: React.FC<ProtectedTargetImageProps> = ({
       setLoadError(false);
 
       try {
-        const { challengeApi } = await import('@/lib/api');
         let url: string | null = null;
 
         if (challengeId) {
@@ -79,7 +79,6 @@ export const ProtectedTargetImage: React.FC<ProtectedTargetImageProps> = ({
 
       if (isSubscribed) {
         if (fallbackUrl) {
-          const { resolveMediaUrl } = await import('@/lib/api');
           setBlobUrl(resolveMediaUrl(fallbackUrl));
         } else {
           setLoadError(true);
@@ -186,7 +185,7 @@ export const ProtectedTargetImage: React.FC<ProtectedTargetImageProps> = ({
         {/* Error state */}
         {!loading && (loadError || !blobUrl) && (
           <div className="flex aspect-square w-full items-center justify-center bg-slate-950 p-6 text-center text-xs text-slate-400 font-mono">
-            Target image stream not active for this round.
+            Target image could not be loaded.
           </div>
         )}
 

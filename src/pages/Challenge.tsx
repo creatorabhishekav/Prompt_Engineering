@@ -19,14 +19,15 @@ import { PageTransition } from '@/components/PageTransition';
 import { Card, CardBody, CardFooter, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Loading } from '@/components/ui/Loading';
-import { challengeApi, getApiErrorMessage, resolveMediaUrl } from '@/lib/api';
+import { challengeApi, getApiErrorMessage, resolveMediaUrl, tokenStorage } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
+import { auth } from '@/lib/firebase';
 import { ProtectedTargetImage } from '@/components/ProtectedTargetImage';
 import { ChallengeStepper, type StepItem } from '@/components/ChallengeStepper';
 import { ScoreDisplay } from '@/components/ScoreDisplay';
 import type { ActiveRound, ChallengeStatus } from '@/types';
 
-type Phase = 'loading' | 'lobby' | 'playing' | 'locked' | 'error' | 'empty';
+type Phase = 'loading' | 'lobby' | 'starting' | 'active' | 'submitted' | 'error' | 'empty';
 
 export function ChallengePage() {
   const { user } = useAuth();
@@ -88,43 +89,97 @@ export function ChallengePage() {
   }, [loadRounds]);
 
   const applyChallenge = useCallback((data: ChallengeStatus) => {
+    if (!data || typeof data !== 'object') {
+      console.error('[CHALLENGE] Invalid data payload received in applyChallenge:', data);
+      return;
+    }
+
     setChallenge(data);
     const next = data.status;
 
     // Synchronize prompt text from server response (authoritative)
-    // If backend returns prompt_1 or prompt_2, ensure local state matches
-    if (data.prompt_1 !== undefined && data.prompt_1 !== null) {
-      setPrompt1(data.prompt_1);
+    // Only synchronize if user hasn't typed local content yet, or if server provides non-empty text
+    if (data.prompt_1) {
+      setPrompt1((prev) => (prev.trim() ? prev : data.prompt_1!));
     } else if (data.prompt) {
-      setPrompt1(data.prompt);
+      setPrompt1((prev) => (prev.trim() ? prev : data.prompt!));
     }
 
-    if (data.prompt_2 !== undefined && data.prompt_2 !== null) {
-      setPrompt2(data.prompt_2);
+    if (data.prompt_2) {
+      setPrompt2((prev) => (prev.trim() ? prev : data.prompt_2!));
     }
 
     // Synchronize saved Google Gemini Chat Link unless actively edited by user
-    if (!geminiLinkTouchedRef.current && data.gemini_chat_link !== undefined) {
-      setGeminiChatLink(data.gemini_chat_link || '');
+    if (!geminiLinkTouchedRef.current && data.gemini_chat_link) {
+      setGeminiChatLink(data.gemini_chat_link);
     }
 
     const isFinished = next === 'submitted' || next === 'completed' || next === 'scored' || next === 'rejected';
     if (isFinished) {
-      setPhase('locked');
+      setPhase('submitted');
     } else {
-      setPhase('playing');
+      setPhase('active');
     }
   }, []);
 
   const startRound = async (round: ActiveRound) => {
+    if (!user) {
+      setError('Please sign in before starting a challenge.');
+      setPhase('error');
+      return;
+    }
+
     setBusy(true);
     setError(null);
+    // Explicit transition: lobby -> starting
+    setPhase('starting');
+
     try {
+      // 10. Auth isolation: verify active token immediately before start call
+      if (auth.currentUser) {
+        try {
+          const freshToken = await auth.currentUser.getIdToken();
+          if (freshToken) {
+            tokenStorage.set(freshToken);
+          }
+        } catch (tokenErr) {
+          console.warn('[AUTH ISOLATION] Token retrieval warning:', tokenErr);
+        }
+      }
+
+      const activeToken = tokenStorage.get();
+      if (!activeToken) {
+        throw new Error('Authentication session is uninitialized or expired. Please sign in again.');
+      }
+
+      // API Call
       const data = await challengeApi.start(round.id);
-      setActiveRound({ ...round, target_image_url: data.target_image_url ?? round.target_image_url });
+
+      // 7. Validate API response before updating state
+      if (!data || typeof data !== 'object') {
+        throw new Error('Invalid response received from challenge server.');
+      }
+      if (!data.id) {
+        throw new Error('Server response missing required submission ID.');
+      }
+      if (!data.round_id && !round.id) {
+        throw new Error('Server response missing associated round reference.');
+      }
+
+      const validatedTargetUrl = data.target_image_url || round.target_image_url || null;
+
+      setActiveRound({
+        ...round,
+        target_image_url: validatedTargetUrl,
+      });
+
+      // Validated -> transition to active or submitted via applyChallenge
       applyChallenge(data);
     } catch (e) {
-      setError(getApiErrorMessage(e));
+      const errorMsg = getApiErrorMessage(e);
+      console.error('[START CHALLENGE ERROR]', e);
+      setError(errorMsg || 'Failed to start challenge round.');
+      setPhase('error');
     } finally {
       setBusy(false);
     }
@@ -140,14 +195,14 @@ export function ChallengePage() {
       if (msg.toLowerCase().includes('not open')) {
         setPhase('empty');
       } else {
-        setError(msg);
+        console.warn('[CHALLENGE RESYNC WARNING]', msg);
       }
     }
   }, [activeRound, applyChallenge]);
 
   // Poll server state periodically without running a countdown timer
   useEffect(() => {
-    if (phase !== 'playing') return;
+    if (phase !== 'active') return;
     const poll = setInterval(() => void resync(), 10000);
     return () => clearInterval(poll);
   }, [phase, resync]);
@@ -323,6 +378,17 @@ export function ChallengePage() {
     );
   }
 
+  if (phase === 'starting') {
+    return (
+      <PageTransition>
+        <div className="space-y-8">
+          <Header />
+          <Loading label="Securing target asset and entering competition arena..." />
+        </div>
+      </PageTransition>
+    );
+  }
+
   if (phase === 'error') {
     return (
       <PageTransition>
@@ -452,7 +518,7 @@ export function ChallengePage() {
       id: 'step-p1',
       number: '02',
       label: 'Prompt 1',
-      status: p1Submitted ? 'completed' : phase === 'playing' ? 'current' : 'locked',
+      status: p1Submitted ? 'completed' : phase === 'active' ? 'current' : 'locked',
     },
     {
       id: 'step-first-img',
@@ -488,11 +554,11 @@ export function ChallengePage() {
       id: 'step-submission',
       number: '08',
       label: 'Submission',
-      status: phase === 'locked' ? 'completed' : (finalImageUploaded && geminiChatLink.trim()) ? 'current' : 'locked',
+      status: phase === 'submitted' ? 'completed' : (finalImageUploaded && geminiChatLink.trim()) ? 'current' : 'locked',
     },
   ], [p1Submitted, phase, firstImageUploaded, firstScoreDone, p2Submitted, p2Unlocked, finalImageUploaded, geminiChatLink]);
 
-  // playing | locked
+  // active | submitted
   return (
     <PageTransition>
       <div className="space-y-6">
@@ -501,7 +567,7 @@ export function ChallengePage() {
         {/* Challenge Status Header (No Countdown Timer) */}
         <Card className="overflow-hidden">
           <div
-            className={`h-1.5 ${phase === 'playing' ? 'bg-gradient-to-r from-brand-500 to-accent-600' : 'bg-emerald-500'}`}
+            className={`h-1.5 ${phase === 'active' ? 'bg-gradient-to-r from-brand-500 to-accent-600' : 'bg-emerald-500'}`}
           />
           <CardBody className="flex flex-wrap items-center justify-between gap-4 py-4">
             <div>
@@ -517,7 +583,7 @@ export function ChallengePage() {
                 <span className={`h-2 w-2 rounded-full ${challenge?.status === 'in_progress' ? 'bg-amber-500' : 'bg-emerald-500'}`} />
                 <span className="capitalize">{challenge?.status?.replace('_', ' ') ?? ''}</span>
               </div>
-              {phase === 'locked' && (
+              {phase === 'submitted' && (
                 <span className="flex items-center gap-1 text-xs font-medium text-slate-500">
                   <Lock className="h-3.5 w-3.5" /> Locked
                 </span>
@@ -614,15 +680,15 @@ export function ChallengePage() {
                 <textarea
                   value={prompt1}
                   onChange={(e) => setPrompt1(e.target.value)}
-                  disabled={p1Submitted || phase === 'locked'}
-                  readOnly={p1Submitted || phase === 'locked'}
+                  disabled={p1Submitted || phase === 'submitted'}
+                  readOnly={p1Submitted || phase === 'submitted'}
                   rows={4}
                   placeholder="Enter your initial prompt describing the target image..."
                   className="w-full resize-none rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200 disabled:opacity-70 disabled:bg-slate-50"
                 />
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-slate-400">{prompt1.length} / 4000 characters</span>
-                  {!p1Submitted && phase === 'playing' && (
+                  {!p1Submitted && phase === 'active' && (
                     <Button
                       size="sm"
                       loading={submittingP1}
@@ -688,7 +754,7 @@ export function ChallengePage() {
                       />
                     )}
 
-                    {phase === 'playing' && (
+                    {phase === 'active' && (
                       <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
                         <label className="inline-flex items-center gap-1.5 rounded-lg border border-brand-300 bg-white px-3 py-1.5 text-xs font-semibold text-brand-700 shadow-sm hover:bg-brand-50 cursor-pointer transition">
                           <Upload className="h-3.5 w-3.5 text-brand-600" />
@@ -716,12 +782,12 @@ export function ChallengePage() {
                       onDrop={(e) => {
                         e.preventDefault();
                         const f = e.dataTransfer.files?.[0];
-                        if (f && phase === 'playing') void handleFirstFileUpload(f);
+                        if (f && phase === 'active') void handleFirstFileUpload(f);
                       }}
                     >
                       <label
                         className={`flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed px-4 py-6 text-center transition ${
-                          phase === 'locked'
+                          phase === 'submitted'
                             ? 'border-slate-200 bg-slate-50 text-slate-400'
                             : 'cursor-pointer border-brand-300 bg-brand-50/40 text-brand-700 hover:border-brand-500 hover:bg-brand-50'
                         }`}
@@ -731,7 +797,7 @@ export function ChallengePage() {
                           <p className="font-semibold text-sm">Click or Drag & Drop First Generated Image</p>
                           <p className="mt-1 text-xs text-slate-500">Triggers Stage 1 ML Evaluation & Unlocks Step 2</p>
                         </div>
-                        {phase === 'playing' && (
+                        {phase === 'active' && (
                           <input
                             type="file"
                             accept="image/png,image/jpeg,image/jpg,image/webp"
@@ -777,15 +843,15 @@ export function ChallengePage() {
               <textarea
                 value={prompt2}
                 onChange={(e) => setPrompt2(e.target.value)}
-                disabled={!p2Unlocked || p2Submitted || phase === 'locked'}
-                readOnly={!p2Unlocked || p2Submitted || phase === 'locked'}
+                disabled={!p2Unlocked || p2Submitted || phase === 'submitted'}
+                readOnly={!p2Unlocked || p2Submitted || phase === 'submitted'}
                 rows={4}
                 placeholder={p2Unlocked ? "Enter your follow-up prompt to refine the image..." : "Complete Stage 1 ML Evaluation to unlock Step 2"}
                 className="w-full resize-none rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200 disabled:opacity-70 disabled:bg-slate-50"
               />
               <div className="flex items-center justify-between">
                 <span className="text-xs text-slate-400">{prompt2.length} / 4000 characters</span>
-                {p2Unlocked && !p2Submitted && phase === 'playing' && (
+                {p2Unlocked && !p2Submitted && phase === 'active' && (
                   <Button
                     size="sm"
                     loading={submittingP2}
@@ -847,12 +913,12 @@ export function ChallengePage() {
                       {challenge.final_score_breakdown && (
                         <>
                           <div className="grid grid-cols-6 gap-1 pt-2 border-t border-emerald-200 text-center text-[10px]">
-                            <div><span className="text-slate-500 block">Sim</span><strong className="text-slate-800">{challenge.final_score_breakdown.semantic_similarity ?? challenge.final_score_breakdown.semantic_score}/45</strong></div>
-                            <div><span className="text-slate-500 block">Comp</span><strong className="text-slate-800">{challenge.final_score_breakdown.composition_score}/12</strong></div>
-                            <div><span className="text-slate-500 block">Obj</span><strong className="text-slate-800">{challenge.final_score_breakdown.objects_score}/10</strong></div>
-                            <div><span className="text-slate-500 block">Col</span><strong className="text-slate-800">{challenge.final_score_breakdown.color_score}/7</strong></div>
+                            <div><span className="text-slate-500 block">Sim</span><strong className="text-slate-800">{challenge.final_score_breakdown.semantic_similarity ?? challenge.final_score_breakdown.semantic_score ?? 0}/45</strong></div>
+                            <div><span className="text-slate-500 block">Comp</span><strong className="text-slate-800">{challenge.final_score_breakdown.composition_score ?? 0}/12</strong></div>
+                            <div><span className="text-slate-500 block">Obj</span><strong className="text-slate-800">{challenge.final_score_breakdown.objects_score ?? 0}/10</strong></div>
+                            <div><span className="text-slate-500 block">Col</span><strong className="text-slate-800">{challenge.final_score_breakdown.color_score ?? 0}/7</strong></div>
                             <div><span className="text-slate-500 block">Qual</span><strong className="text-slate-800">{challenge.final_score_breakdown.image_quality_score ?? 0}/4</strong></div>
-                            <div><span className="text-slate-500 block">Det</span><strong className="text-slate-800">{challenge.final_score_breakdown.fine_details_score ?? challenge.final_score_breakdown.details_score}/2</strong></div>
+                            <div><span className="text-slate-500 block">Det</span><strong className="text-slate-800">{challenge.final_score_breakdown.fine_details_score ?? challenge.final_score_breakdown.details_score ?? 0}/2</strong></div>
                           </div>
                           <div className="flex items-center justify-between pt-1 text-[10px] text-emerald-700">
                             <span>Model: {challenge.final_score_breakdown.evaluation_method || 'CLIP ViT-B/32'}</span>
@@ -863,7 +929,7 @@ export function ChallengePage() {
                     </div>
                   )}
 
-                  {phase === 'playing' && (
+                  {phase === 'active' && (
                     <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
                       <label className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-white px-3 py-1.5 text-xs font-semibold text-emerald-800 shadow-sm hover:bg-emerald-50 cursor-pointer transition">
                         <Upload className="h-3.5 w-3.5 text-emerald-600" />
@@ -891,12 +957,12 @@ export function ChallengePage() {
                     onDrop={(e) => {
                       e.preventDefault();
                       const f = e.dataTransfer.files?.[0];
-                      if (f && phase === 'playing') void handleFinalFileUpload(f);
+                      if (f && phase === 'active') void handleFinalFileUpload(f);
                     }}
                   >
                     <label
                       className={`flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed px-4 py-6 text-center transition ${
-                        phase === 'locked'
+                        phase === 'submitted'
                           ? 'border-slate-200 bg-slate-50 text-slate-400'
                           : 'cursor-pointer border-brand-300 bg-brand-50/40 text-brand-700 hover:border-brand-500 hover:bg-brand-50'
                       }`}
@@ -906,7 +972,7 @@ export function ChallengePage() {
                         <p className="font-semibold text-sm">Click or Drag & Drop Final Generated Image</p>
                         <p className="mt-1 text-xs text-slate-500">Runs Stage 2 ML Evaluation for your Leaderboard Score</p>
                       </div>
-                      {phase === 'playing' && (
+                      {phase === 'active' && (
                         <input
                           type="file"
                           accept="image/png,image/jpeg,image/jpg,image/webp"
@@ -933,11 +999,11 @@ export function ChallengePage() {
                 }}
                 onPaste={handlePasteClipboard}
                 pasteFeedback={pasteFeedback}
-                disabled={phase === 'locked'}
-                readOnly={phase === 'locked'}
+                disabled={phase === 'submitted'}
+                readOnly={phase === 'submitted'}
               />
 
-              {phase === 'playing' && (
+              {phase === 'active' && (
                 <div className="space-y-3 border-t border-slate-100 pt-4">
                   <Button
                     fullWidth
@@ -954,7 +1020,7 @@ export function ChallengePage() {
                 </div>
               )}
 
-              {phase === 'locked' && (
+              {phase === 'submitted' && (
                 <div className="space-y-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-center">
                   <div className="flex items-center justify-center gap-2 text-emerald-800 font-semibold text-sm">
                     <CheckCircle2 className="h-5 w-5" />
@@ -979,8 +1045,8 @@ function Header() {
   return (
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div>
-        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">Active Challenge</h1>
-        <p className="mt-1 text-xs sm:text-sm text-zinc-400">Reverse Prompt Engineering Arena — Two-Stage Iterative Prompting</p>
+        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">Active Challenge</h1>
+        <p className="mt-1 text-xs sm:text-sm text-slate-500">Reverse Prompt Engineering Arena — Two-Stage Iterative Prompting</p>
       </div>
     </div>
   );
